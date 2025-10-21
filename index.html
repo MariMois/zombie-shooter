@@ -1,3 +1,8 @@
+<!--
+Zombie Shooter — (c) 2025 MariMois — MIT License
+Repo: https://github.com/MariMois/zombie-shooter
+-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -63,6 +68,11 @@
   <button id="pauseBtn" class="btn">Pause</button>
   <button id="restartBtn" class="btn">Restart</button>
   <button id="muteBtn" class="btn">Mute</button>
+  <button class="btn"
+        onclick="window.open('https://ko-fi.com/G2G41N6HQ1','_blank')">
+  Donate ☕
+</button>
+
 </div>
 
 <div class="hud">
@@ -75,6 +85,12 @@
 
 <div id="activePerks"></div>
 <div id="gameOver">GAME OVER<br><span style="font-size:18px;opacity:.8">Press Restart</span></div>
+
+<a id="aboutLink" href="https://github.com/MariMois/zombie-shooter" target="_blank" rel="noopener" title="About this game"
+   style="position:absolute; right:8px; bottom:8px; z-index:9; font-size:12px; opacity:.6; text-decoration:none; color:#cfe7ff;">
+  © 2025 MariMois
+</a>
+
 
 <script>
 /* ====== Canvas / Basics (with DPR cap) ====== */
@@ -969,7 +985,7 @@ function draw(){
 
   // hint
   const f = fieldRect();
-  const tip = 'Break crates → shoot drops to open';
+  const tip = 'Shoot crates to get perks! (Click/Tap and Hold to Move)';
   ctx.save();
   ctx.globalAlpha = 0.20; ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
   let tx = f.x + f.w + 12; const tw = ctx.measureText(tip).width;

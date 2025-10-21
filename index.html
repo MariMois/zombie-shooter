@@ -504,6 +504,19 @@ const entities = { enemies:[], bullets:[], companions:[], barriers:[], perks:[] 
 let player;
 let highScore=+(localStorage.getItem('highScore')||0); document.getElementById('highScore').textContent=highScore;
 
+/* ====== Drone helpers (fix for overlapping/vanishing drones) ====== */
+function nextFreeDroneSlot() {
+  const used = new Set(entities.companions.map(d => d.slot));
+  for (let s = 0; s < MAX_DRONES; s++) if (!used.has(s)) return s;
+  return null;
+}
+function normalizeDroneSlots() {
+  // Repack deterministically 0..n-1 by creation time (no duplicates, stable layout)
+  entities.companions
+    .sort((a,b)=>a.created - b.created)
+    .forEach((d,i)=> d.slot = i);
+}
+
 /* ====== Spawn Director ====== */
 const director = {
   qEnemies: 0,
@@ -579,13 +592,25 @@ const PERKS={
   bullet:{name:'Extra Bullet',apply(p){p.bulletsPerShot+=1},revert(p){p.bulletsPerShot=Math.max(1,p.bulletsPerShot-1)},icon:'bullet'},
   spread:{name:'Spread',apply(p){p.spread=Math.min(p.spread+0.25,p.spreadMax)},revert(p){p.spread=0},icon:'spread',single:true},
   drone:{name:'Drone',apply(p){
-    const now=performance.now();
-    if(entities.companions.length<MAX_DRONES){
-      entities.companions.push({slot:entities.companions.length,created:now,life:DRONE_LIFE,fireRate:550,timer:0});
-    }else{
-      let oldest=0; for(let i=1;i<entities.companions.length;i++) if(entities.companions[i].created<entities.companions[oldest].created) oldest=i;
+    const now = performance.now();
+    if (entities.companions.length < MAX_DRONES){
+      const slot = nextFreeDroneSlot();
+      entities.companions.push({
+        slot: slot ?? entities.companions.length, // safety fallback
+        created: now,
+        life: DRONE_LIFE,
+        fireRate: 550,
+        timer: 0
+      });
+    } else {
+      // Refresh the oldest drone's lifespan (quality-of-life)
+      let oldest = 0;
+      for (let i = 1; i < entities.companions.length; i++)
+        if (entities.companions[i].created < entities.companions[oldest].created) oldest = i;
       entities.companions[oldest].created = now;
+      entities.companions[oldest].timer = 0; // fires sooner after refresh
     }
+    normalizeDroneSlots();
   },revert(_p){},icon:'drone'},
   heal:{name:'Heal',apply(_p){lives=Math.min(lives+1,5)},revert(_p){},icon:'heal'},
   coin:{name:'Score',apply(_p){score+=500},revert(_p){},icon:'coin'},
@@ -636,6 +661,7 @@ function restart(){
   entities.enemies.length=0; entities.bullets.length=0; entities.companions.length=0; entities.barriers.length=0; entities.perks.length=0;
   director.pendingDrops.length=0; director.tPerkDrop=0;
   player=createPlayer(); score=0; wave=1; lives=3; gameOver=false; overEl.style.display='none';
+  normalizeDroneSlots(); // tidy (no-op after clear, but safe)
   spawnWave(wave); requestHUD(); layoutToRoad();
 }
 function addPerkStack(key){
@@ -768,10 +794,17 @@ function update(dt){
   }
   if (player.shootFlash>0) player.shootFlash -= dt;
 
-  // drones
-  for(let i=entities.companions.length-1;i>=0;i--){
+  // === DRONES ===
+  // 1) expire first; 2) normalize slots; 3) position & fire
+  let removed = false;
+  for (let i = entities.companions.length - 1; i >= 0; i--) {
+    const d = entities.companions[i];
+    if (performance.now() - d.created > d.life) { entities.companions.splice(i,1); removed = true; }
+  }
+  if (removed) normalizeDroneSlots();
+
+  for(let i=0;i<entities.companions.length;i++){
     const d=entities.companions[i];
-    if(performance.now()-d.created>d.life){entities.companions.splice(i,1);continue;}
     const s=8*PIX;
     const offset = d.slot===0 ? {dx:-s,dy:-PIX-10}
                 : d.slot===1 ? {dx:+s,dy:-PIX-10}
@@ -1036,5 +1069,3 @@ init();
 </script>
 </body>
 </html>
-
-

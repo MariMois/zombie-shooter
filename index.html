@@ -28,6 +28,32 @@
   .bar>span{position:absolute;left:0;top:0;bottom:0;width:0;background:#39f0ff}
 
   #gameOver{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#ff5d5d;font-size:42px;font-weight:800;display:none;text-align:center}
+
+  /* Compact/mobile helpers */
+  .glass {
+    background: rgba(16,25,42,.65);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    padding: 6px 8px;
+    backdrop-filter: blur(2px);
+  }
+
+  /* Smaller text in compact mode so bars fit */
+  body.compact .hud { font-size: 12px; }
+
+  body.compact #ui .btn { padding: 6px 10px; font-size: 12px; }
+
+  /* Finger-friendly buttons on touch screens */
+  @media (pointer:coarse) {
+    #ui .btn { padding: 10px 14px; }
+  }
+
+  /* Perk stack: column on compact so they don't sprawl horizontally */
+  body.compact #activePerks { flex-direction: column; gap: 6px; }
+
+  /* NEW: true compact stack + centering */
+  body.compact .hud { text-align:center; max-width:90vw; }
+  body.compact #ui  { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; max-width:90vw; }
 </style>
 </head>
 <body>
@@ -79,17 +105,17 @@ const MAX_DRONES = 3;
 const CONTACT_DPS_BASE = 35;
 
 /* ====== Spawn pacing / spacing ====== */
-const ENEMY_MIN_DX = 18;           // px min horizontal gap between fresh spawns
-const ENEMY_MIN_DY = 44;           // px min vertical gap between fresh spawns
-const ENEMY_SPAWN_BASE_MS = 420;   // baseline gap between spawns
-const ENEMY_SPAWN_RANDOM_MS = 220; // extra random jitter
-const MAX_SIMULT_ENEMIES = 12;     // on-screen cap (will scale with wave)
+const ENEMY_MIN_DX = 18;
+const ENEMY_MIN_DY = 44;
+const ENEMY_SPAWN_BASE_MS = 420;
+const ENEMY_SPAWN_RANDOM_MS = 220;
+const MAX_SIMULT_ENEMIES = 12;
 
 const BARRIER_SPAWN_BASE_MS = 700;
 const BARRIER_SPAWN_RANDOM_MS = 300;
 
-const MAX_PERK_DROPS = 4;              // cap active perk drops
-const PERK_DROP_COOLDOWN_MS = 350;     // stagger perk spawns from crates
+const MAX_PERK_DROPS = 4;
+const PERK_DROP_COOLDOWN_MS = 350;
 
 /* ====== Field helpers ====== */
 function fieldRect(){ const w=FIELD_W, h=FIELD_H(); return {x:(W-w)/2, y:(H-h)/2, w, h}; }
@@ -100,30 +126,94 @@ function clampToField(px,py){
   return {x: Math.max(xMin, Math.min(xMax, px)), y: Math.max(yMin, Math.min(yMax, py))};
 }
 
-/* ====== UI elements & layout-to-road (OUTSIDE) ====== */
+/* ====== UI elements ====== */
 const uiEl = document.getElementById('ui');
 const hudBox = document.querySelector('.hud');
 const perksEl = document.getElementById('activePerks');
 function clamp(val, min, max){ return Math.max(min, Math.min(max, val)); }
+
+/* === UPDATED: compact stacked layout === */
 function layoutToRoad(){
   const f = fieldRect();
   const pad = 8, gutter = 10;
-  let hudLeft = f.x - (hudBox.offsetWidth||0) - gutter;
-  let hudTop  = f.y + pad;
-  const uiW = uiEl.offsetWidth || 0;
-  let uiLeft = f.x + f.w + gutter;
-  let uiTop  = f.y + pad;
-  const perksH = perksEl.offsetHeight || 0;
-  let perksLeft = f.x - (perksEl.offsetWidth||0) - gutter;
-  let perksTop  = f.y + f.h - perksH - pad;
 
-  hudLeft   = clamp(hudLeft, 8, W - (hudBox.offsetWidth||0) - 8);
-  hudTop    = clamp(hudTop, 8, H - (hudBox.offsetHeight||0) - 8);
-  uiLeft    = clamp(uiLeft, 8, W - uiW - 8);
-  uiTop     = clamp(uiTop, 8, H - (uiEl.offsetHeight||0) - 8);
-  perksLeft = clamp(perksLeft, 8, W - (perksEl.offsetWidth||0) - 8);
-  perksTop  = clamp(perksTop, 8, H - perksH - 8);
+  // measure current sizes
+  const uiW0 = uiEl.offsetWidth || 0;
+  const hudW0 = hudBox.offsetWidth || 0;
+  const perksH0 = perksEl.offsetHeight || 0;
 
+  // side space to decide compact mode
+  const leftSpace  = f.x;
+  const rightSpace = (W - (f.x + f.w));
+  const COMPACT_THRESHOLD = 80;
+  const compact = leftSpace < COMPACT_THRESHOLD && rightSpace < COMPACT_THRESHOLD;
+
+  document.body.classList.toggle('compact', compact);
+  hudBox.classList.toggle('glass', compact);
+  uiEl.classList.toggle('glass', compact);
+
+  let hudLeft, hudTop, uiLeft, uiTop, perksLeft, perksTop;
+
+  if (compact) {
+    // limit widths so they center nicely within the road
+    const maxW = Math.min(f.w - 2*pad, 360);
+    hudBox.style.maxWidth = maxW + 'px';
+    uiEl.style.maxWidth   = maxW + 'px';
+
+    // re-measure after constraining widths
+    const hudW = Math.min(hudBox.offsetWidth || hudW0, maxW);
+    const uiW  = Math.min(uiEl.offsetWidth   || uiW0,  maxW);
+
+    // HUD centered at top INSIDE the road
+    hudLeft = Math.round(f.x + (f.w - hudW)/2);
+    hudTop  = f.y + pad;
+
+    // Buttons centered under HUD INSIDE the road
+    const hudH = hudBox.offsetHeight || 0;
+    uiLeft = Math.round(f.x + (f.w - uiW)/2);
+    uiTop  = hudTop + hudH + 8;
+
+    // Perks bottom-left INSIDE (vertical stack)
+    perksEl.style.maxWidth = Math.min(f.w * 0.5, 240) + 'px';
+    perksEl.style.flexDirection = 'column';
+    const perksH = perksEl.offsetHeight || perksH0;
+    perksLeft = f.x + pad;
+    perksTop  = f.y + f.h - perksH - pad;
+  } else {
+    // restore defaults
+    hudBox.style.maxWidth = '';
+    uiEl.style.maxWidth   = '';
+    perksEl.style.maxWidth = '38vw';
+    perksEl.style.flexDirection = 'row';
+
+    // HUD -> top-left OUTSIDE
+    const hudW = hudBox.offsetWidth || 0;
+    const hudH = hudBox.offsetHeight || 0;
+    hudLeft = f.x - hudW - gutter;
+    hudTop  = f.y + pad;
+
+    // Buttons -> top-right OUTSIDE
+    const uiW = uiEl.offsetWidth || 0;
+    const uiH = uiEl.offsetHeight || 0;
+    uiLeft  = f.x + f.w + gutter;
+    uiTop   = f.y + pad;
+
+    // Perks -> bottom-left OUTSIDE
+    const perksW = perksEl.offsetWidth || 0;
+    const perksH = perksEl.offsetHeight || perksH0;
+    perksLeft = f.x - perksW - gutter;
+    perksTop  = f.y + f.h - perksH - pad;
+
+    // clamp to viewport
+    hudLeft   = Math.max(8, Math.min(hudLeft,  W - hudW - 8));
+    hudTop    = Math.max(8, Math.min(hudTop,   H - hudH - 8));
+    uiLeft    = Math.max(8, Math.min(uiLeft,   W - uiW - 8));
+    uiTop     = Math.max(8, Math.min(uiTop,    H - uiH - 8));
+    perksLeft = Math.max(8, Math.min(perksLeft, W - (perksEl.offsetWidth||0) - 8));
+    perksTop  = Math.max(8, Math.min(perksTop,  H - (perksEl.offsetHeight||0) - 8));
+  }
+
+  // apply positions
   hudBox.style.left = hudLeft + 'px';
   hudBox.style.top  = hudTop  + 'px';
   uiEl.style.left   = uiLeft  + 'px';
@@ -520,8 +610,8 @@ function spawnWave(n){
 
   director.qEnemies  = enemiesCount;
   director.qBarriers = barriersCount;
-  director.tEnemy    = 0;    // start immediately
-  director.tBarrier  = 200;  // tiny offset so they don't align
+  director.tEnemy    = 0;
+  director.tBarrier  = 200;
   wave=n; requestHUD(); layoutToRoad();
 }
 
@@ -767,11 +857,11 @@ function update(dt){
     if(p.y > f.y + f.h + 40) entities.perks.splice(i,1);
   }
 
-  // wave advance (only once queues and field are clear)
+  // wave advance (queues + field clear)
   if(!gameOver &&
      entities.enemies.length===0 && entities.barriers.length===0 && entities.perks.length===0 &&
      director.qEnemies===0 && director.qBarriers===0 && director.pendingDrops.length===0){
-    director.tEnemy = 300; director.tBarrier = 400; // small breather
+    director.tEnemy = 300; director.tBarrier = 400;
     spawnWave(wave+1);
   }
 

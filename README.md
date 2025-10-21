@@ -3,4 +3,5 @@ MIT © 2025 MariMois — see [LICENSE](./LICENSE).
 
 ## Support / Donate
 If you enjoy the game, you can support it here:
-- Ko-fi: https://ko-fi.com/marimois
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/G2G41N6HQ1)

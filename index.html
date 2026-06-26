@@ -24,10 +24,27 @@
          max-width:38vw;
          }
          .perk-pill{position:relative;min-width:120px;background:rgba(255,255,255,.06);padding:6px 8px 10px;border-radius:8px;font-size:12px}
+         .weapon-pill{border:1px solid rgba(255,214,107,.45);background:rgba(255,214,107,.08)}
          .pill-row{display:flex;justify-content:space-between;gap:8px;margin-bottom:4px}
+        .pill-row .lbl{display:inline-flex;align-items:center;gap:4px}
+        .pill-icon{width:14px;height:14px;image-rendering:pixelated;vertical-align:middle}
          .bar{position:relative;height:6px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}
          .bar>span{position:absolute;left:0;top:0;bottom:0;width:0;background:#39f0ff}
          #gameOver{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#ff5d5d;font-size:42px;font-weight:800;display:none;text-align:center}
+         #waveBanner{
+         position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);
+         color:#ffd66b;font-size:34px;font-weight:800;letter-spacing:2px;
+         text-shadow:2px 2px 0 #000;opacity:0;pointer-events:none;z-index:8;
+         transition:opacity .35s ease, transform .35s ease;
+         }
+         #waveBanner.show{opacity:1;transform:translate(-50%,-50%) scale(1.05);}
+         #lowHpVignette{
+         position:fixed;inset:0;pointer-events:none;z-index:6;
+         background:radial-gradient(ellipse at center, rgba(176,20,20,0) 55%, rgba(176,20,20,.55) 100%);
+         opacity:0;transition:opacity .25s ease;
+         }
+         #lowHpVignette.pulse{opacity:1;animation:hpPulse 1.1s ease-in-out infinite;}
+         @keyframes hpPulse{0%,100%{opacity:.35}50%{opacity:.75}}
          /* Compact/mobile helpers */
          .glass {
          background: rgba(16,25,42,.65);
@@ -63,6 +80,8 @@
          High: <span id="highScore">0</span>
       </div>
       <div id="activePerks"></div>
+      <div id="waveBanner"></div>
+      <div id="lowHpVignette"></div>
       <div id="gameOver">GAME OVER<br><span style="font-size:18px;opacity:.8">Press Restart</span></div>
       <a id="aboutLink" href="https://github.com/MariMois/zombie-shooter" target="_blank" rel="noopener" title="About this game"
          style="position:absolute; right:8px; bottom:8px; z-index:9; font-size:12px; opacity:.6; text-decoration:none; color:#cfe7ff;">
@@ -223,6 +242,8 @@
          const hpEl=document.getElementById('php');
          const hsEl=document.getElementById('highScore');
          const overEl=document.getElementById('gameOver');
+         const waveBannerEl=document.getElementById('waveBanner');
+         const lowHpEl=document.getElementById('lowHpVignette');
          const pauseBtn = document.getElementById('pauseBtn');
          const restartBtn = document.getElementById('restartBtn');
          pauseBtn.onclick = () => { paused = !paused; pauseBtn.textContent = paused ? 'Resume' : 'Pause'; layoutToRoad(); };
@@ -259,7 +280,8 @@
            ol:'#5c6e45', ol2:'#6f8351', st:'#aab7cc',
            wd1:'#8b5e3c', wd2:'#a06e46', wd3:'#c18a5c',
            gr:'#94a3b8', gr2:'#cbd5e1',
-           bone:'#e7e1cc', bone2:'#d8d2bd', blood:'#b04343'
+           bone:'#e7e1cc', bone2:'#d8d2bd', blood:'#b04343',
+           p:'#b46bff', ib:'#8ecbff', o:'#ff8c3b', b:'#3b82f6'
          };
          
          /* Player */
@@ -313,7 +335,97 @@
           [0,'bone',0,0,0,0,'bone',0],
           [0,0,0,0,0,0,0,0],
          ];
-         
+
+         /* Walk-cycle frame B for the three original zombies (feet shift inward) */
+         const Z_SHAMBLER_B=[
+          [0,0,'gn','gn','gn','gn',0,0],
+          [0,'k',0,'gn','gn',0,'k',0],
+          [0,'gn','gn','gn','gn','gn','gn',0],
+          [0,'gg','gg','bone2','bone2','gg','gg',0],
+          [0,'gg','bone','bone','bone','gg','gg',0],
+          [0,'gg','gg','bone2','bone2','gg','gg',0],
+          [0,'gg',0,'gg','gg',0,'gg',0],
+          [0,'gn','gn','gg','gg','gn','gn',0],
+          [0,0,'gn',0,0,'gn',0,0],
+          [0,0,0,0,0,0,0,0],
+         ];
+         const Z_BRUISER_B=[
+          [0,0,'gn','gn','gn','gn',0,0],
+          [0,0,'k','gn','gn','k',0,0],
+          [0,'gn','gn','gn','gn','gn','gn',0],
+          [0,'gg','gg','gg','gg','gg','gg',0],
+          [0,'gg','gg','gg','blood','gg','gg',0],
+          [0,'gg','gg','blood','blood','gg','gg',0],
+          [0,'gg',0,'bone2','bone2',0,'gg',0],
+          [0,'gn','gg','gg','gg','gg','gn',0],
+          [0,0,'gn',0,0,'gn',0,0],
+          [0,0,0,0,0,0,0,0],
+         ];
+         const SKELETON_B=[
+          [0,0,'bone','bone','bone','bone',0,0],
+          [0,'k',0,'bone', 'bone',0,'k',0],
+          [0,'bone','bone','bone','bone','bone','bone',0],
+          [0,'bone2','bone','bone','bone','bone','bone2',0],
+          [0,'bone2','k','bone','bone','k','bone2',0],
+          [0,'bone2','bone','bone','bone','bone','bone2',0],
+          [0,'bone',0,'bone','bone',0,'bone',0],
+          [0,'bone2','bone2','bone2','bone2','bone2','bone2',0],
+          [0,0,'bone',0,0,'bone',0,0],
+          [0,0,0,0,0,0,0,0],
+         ];
+
+         /* Runner — lean, fast zombie (frames A/B = running stride) */
+         const RUNNER_A=[
+          [0,0,0,'gn','gn',0,0,0],
+          [0,0,'k',0,0,'k',0,0],
+          [0,0,'gn','gn','gn','gn',0,0],
+          [0,0,'gg','bone2','bone2','gg',0,0],
+          [0,0,'gg','bone','bone','gg',0,0],
+          [0,0,'gg','bone2','bone2','gg',0,0],
+          [0,'gg','gg',0,0,'gg',0,0],
+          [0,'gn',0,0,0,0,'gn',0],
+          [0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0],
+         ];
+         const RUNNER_B=[
+          [0,0,0,'gn','gn',0,0,0],
+          [0,0,'k',0,0,'k',0,0],
+          [0,0,'gn','gn','gn','gn',0,0],
+          [0,0,'gg','bone2','bone2','gg',0,0],
+          [0,0,'gg','bone','bone','gg',0,0],
+          [0,0,'gg','bone2','bone2','gg',0,0],
+          [0,0,'gg','gg','gg',0,0,0],
+          [0,0,'gn',0,0,'gn',0,0],
+          [0,0,0,0,0,0,0,0],
+          [0,0,0,0,0,0,0,0],
+         ];
+
+         /* Bloater — slow, tanky, bursts on death (frames A/B = pulsing bulge) */
+         const BLOATER_A=[
+          [0,'gn','gn','gn','gn','gn','gn',0],
+          ['k','gn','gn','gn','gn','gn','gn','k'],
+          ['gn','gn','blood','gn','gn','blood','gn','gn'],
+          ['gg','gg','gg','gg','gg','gg','gg','gg'],
+          ['gg','blood','gg','blood','blood','gg','blood','gg'],
+          ['gg','gg','blood','blood','blood','blood','gg','gg'],
+          ['gg','gg','gg','blood','blood','gg','gg','gg'],
+          [0,'gn','gn','gg','gg','gn','gn',0],
+          [0,'gn',0,0,0,0,'gn',0],
+          [0,0,0,0,0,0,0,0],
+         ];
+         const BLOATER_B=[
+          [0,'gn','gn','gn','gn','gn','gn',0],
+          ['k','gn','gn','gn','gn','gn','gn','k'],
+          ['gn','gn','blood','gn','gn','blood','gn','gn'],
+          ['gg','gg','gg','gg','gg','gg','gg','gg'],
+          ['gg','blood','blood','gg','gg','blood','blood','gg'],
+          ['gg','gg','blood','blood','blood','blood','gg','gg'],
+          ['gg','gg','blood','gg','gg','blood','gg','gg'],
+          [0,'gg','gn','gn','gn','gn','gg',0],
+          [0,0,'gn',0,0,'gn',0,0],
+          [0,0,0,0,0,0,0,0],
+         ];
+
          /* Drones (two frames) */
          const DRONE_FRAME_A=[
           [0,'gr2',0, 0, 0,'gr2',0],
@@ -405,6 +517,149 @@
              [0,'gr','gr','c','gr','gr',0],
              [0,0,'gr2',0,'gr2',0,0],
            ],
+
+           /* PIERCE — yellow arrow with silver piercing lines */
+           pierce: [
+             [0, 0, 'st', 0, 0, 0, 0],
+             [0, 0, 0, 'st', 0, 0, 0],
+             ['y','y','y','y','st', 0, 0],
+             ['y','y','y','y','y','st', 0],
+             ['y','y','y','y','st', 0, 0],
+             [0, 0, 0, 'st', 0, 0, 0],
+             [0, 0, 'st', 0, 0, 0, 0],
+           ],
+
+           /* DAMAGE — red/gold burst */
+           damage: [
+             [0, 'r', 0, 0, 0, 'r', 0],
+             ['r','y','r', 0, 'r','y','r'],
+             [0, 'r','y','r','y','r', 0],
+             [0, 0, 'y','r','y', 0, 0],
+             [0, 'r','y','r','y','r', 0],
+             ['r','y','r', 0, 'r','y','r'],
+             [0, 'r', 0, 0, 0, 'r', 0],
+           ],
+
+           /* SHIELD — ice-blue heraldic shield */
+           shield: [
+             [0, 'ib','ib','ib','ib','ib', 0],
+             ['ib','ib','w','ib','w','ib','ib'],
+             ['ib','w','ib','ib','ib','w','ib'],
+             ['ib','ib','ib','ib','ib','ib','ib'],
+             [0, 'ib','ib','ib','ib','ib', 0],
+             [0, 0, 'ib','ib','ib', 0, 0],
+             [0, 0, 0, 'ib', 0, 0, 0],
+           ],
+
+           /* MAGNET — classic red/blue horseshoe magnet */
+           magnet: [
+             ['r','r', 0, 0, 0, 'b','b'],
+             ['r','r', 0, 0, 0, 'b','b'],
+             ['r','r', 0, 0, 0, 'b','b'],
+             ['r','r', 0, 0, 0, 'b','b'],
+             ['r','gr2','gr2','gr2','gr2','gr2','b'],
+             ['r','gr2', 0, 0, 0, 'gr2','b'],
+             ['r','gr2', 0, 0, 0, 'gr2','b'],
+           ],
+
+           /* VAMP — blood droplet (lifesteal) */
+           vamp: [
+             [0, 0, 0, 'p', 0, 0, 0],
+             [0, 0, 'p','p','p', 0, 0],
+             [0, 'p','p','p','p','p', 0],
+             ['p','p','blood','blood','blood','p','p'],
+             ['p','blood','blood','blood','blood','blood','p'],
+             [0, 'p','blood','blood','blood','p', 0],
+             [0, 0, 'p','p','p', 0, 0],
+           ],
+
+           /* MULTI — gold sparkle (score x2) */
+           multi: [
+             [0, 0, 0, 'y', 0, 0, 0],
+             [0, 'y', 0, 'y', 0, 'y', 0],
+             [0, 0, 'y','y','y', 0, 0],
+             ['y','y','y','y','y','y','y'],
+             [0, 0, 'y','y','y', 0, 0],
+             [0, 'y', 0, 'y', 0, 'y', 0],
+             [0, 0, 0, 'y', 0, 0, 0],
+           ],
+
+           /* FREEZE — ice-blue snowflake */
+           freeze: [
+             [0, 0, 0, 'ib', 0, 0, 0],
+             ['ib', 0, 'ib','ib','ib', 0, 'ib'],
+             [0, 'ib', 0, 'ib', 0, 'ib', 0],
+             ['ib','ib','ib','ib','ib','ib','ib'],
+             [0, 'ib', 0, 'ib', 0, 'ib', 0],
+             ['ib', 0, 'ib','ib','ib', 0, 'ib'],
+             [0, 0, 0, 'ib', 0, 0, 0],
+           ],
+
+           /* PISTOL — base sidearm */
+           pistol: [
+             [0, 0, 0, 0, 0, 'dk','dk'],
+             [0, 0, 0, 0, 0, 'dk','dk'],
+             ['dk','dk','dk','dk','dk','dk', 0],
+             ['dk','st','st','st','dk', 0, 0],
+             [0, 0, 'dk','dk', 0, 0, 0],
+             [0, 0, 'dk', 0, 0, 0, 0],
+             [0, 0, 'dk', 0, 0, 0, 0],
+           ],
+
+           /* SMG — compact rapid-fire gun */
+           smg: [
+             [0, 0, 0, 0, 'dk','dk','dk'],
+             [0, 0, 0, 0, 'dk','dk','dk'],
+             ['dk','dk','dk','dk','dk','dk', 0],
+             ['dk','st','st','st','dk','dk', 0],
+             [0, 0, 'dk', 0, 0, 0, 0],
+             [0, 0, 'dk', 0, 0, 0, 0],
+             [0, 0, 'dk','dk', 0, 0, 0],
+           ],
+
+           /* SHOTGUN — wood stock + thick barrel */
+           shotgun: [
+             [0, 0, 0, 0, 0, 'wd1','wd1'],
+             [0, 0, 0, 0, 'wd1','wd1','wd1'],
+             ['dk','dk','dk','dk','dk','dk', 0],
+             ['dk','dk','dk','dk','dk','dk', 0],
+             [0, 'wd2','wd2','wd1', 0, 0, 0],
+             [0, 0, 'wd1','wd1', 0, 0, 0],
+             [0, 0, 0, 0, 0, 0, 0],
+           ],
+
+           /* SNIPER — long barrel + scope */
+           sniper: [
+             [0, 0, 'c', 'c', 0, 0, 0],
+             ['dk','dk','dk','dk','dk','dk','dk'],
+             [0, 0, 0, 0, 0, 0, 0],
+             [0, 0, 'st','dk','st', 0, 0],
+             [0, 0, 0, 'dk', 0, 'wd1', 0],
+             [0, 0, 0, 0, 0, 'wd1','wd1'],
+             [0, 0, 0, 0, 0, 0, 'wd1'],
+           ],
+
+           /* ROCKET — missile with fins */
+           rocket: [
+             [0, 0, 0, 'dk', 0, 0, 0],
+             [0, 0, 'dk','o','dk', 0, 0],
+             [0, 'dk','o','o','o','dk', 0],
+             ['dk','o','o','o','o','o','dk'],
+             [0, 'dk','o','o','o','dk', 0],
+             [0, 'o', 0, 'dk', 0, 'o', 0],
+             ['o', 0, 0, 0, 0, 0, 'o'],
+           ],
+
+           /* FLAMETHROWER — fire burst */
+           flamethrower: [
+             [0, 0, 0, 'y', 0, 0, 0],
+             [0, 0, 'y','o','y', 0, 0],
+             [0, 'y','o','r','o','y', 0],
+             [0, 'o','r','r','r','o', 0],
+             ['o','r','r','r','r','r','o'],
+             [0, 'r','r','r','r','r', 0],
+             [0, 0, 'r','r','r', 0, 0],
+           ],
          };
          
          function renderGridToCanvas(grid, scale=PIX){
@@ -427,7 +682,16 @@
            z_shambler: renderGridToCanvas(Z_SHAMBLER),
            z_bruiser:  renderGridToCanvas(Z_BRUISER),
            skeleton:   renderGridToCanvas(SKELETON),
+           runner:     renderGridToCanvas(RUNNER_A),
+           bloater:    renderGridToCanvas(BLOATER_A),
            droneFrames: [renderGridToCanvas(DRONE_FRAME_A), renderGridToCanvas(DRONE_FRAME_B)],
+           zombieFrames: {
+             z_shambler: [renderGridToCanvas(Z_SHAMBLER), renderGridToCanvas(Z_SHAMBLER_B)],
+             z_bruiser:  [renderGridToCanvas(Z_BRUISER),  renderGridToCanvas(Z_BRUISER_B)],
+             skeleton:   [renderGridToCanvas(SKELETON),   renderGridToCanvas(SKELETON_B)],
+             runner:     [renderGridToCanvas(RUNNER_A),   renderGridToCanvas(RUNNER_B)],
+             bloater:    [renderGridToCanvas(BLOATER_A),  renderGridToCanvas(BLOATER_B)],
+           },
            icon: {
              heal:   renderGridToCanvas(ICONS.heal),
              bullet: renderGridToCanvas(ICONS.bullet),
@@ -435,6 +699,19 @@
              spread: renderGridToCanvas(ICONS.spread),
              coin:   renderGridToCanvas(ICONS.coin),
              drone:  renderGridToCanvas(ICONS.drone),
+             pierce: renderGridToCanvas(ICONS.pierce),
+             damage: renderGridToCanvas(ICONS.damage),
+             shield: renderGridToCanvas(ICONS.shield),
+             magnet: renderGridToCanvas(ICONS.magnet),
+             vamp:   renderGridToCanvas(ICONS.vamp),
+             multi:  renderGridToCanvas(ICONS.multi),
+             freeze: renderGridToCanvas(ICONS.freeze),
+             smg:        renderGridToCanvas(ICONS.smg),
+             shotgun:    renderGridToCanvas(ICONS.shotgun),
+             sniper:     renderGridToCanvas(ICONS.sniper),
+             rocket:     renderGridToCanvas(ICONS.rocket),
+             flamethrower: renderGridToCanvas(ICONS.flamethrower),
+             pistol:     renderGridToCanvas(ICONS.pistol),
            }
          };
          
@@ -467,6 +744,23 @@
              }
            }
          }
+         function drawSkyline(g, x0, w, baselineY, dir, maxH){
+           let x = x0;
+           while (x < x0 + w){
+             const bw = 10 + ((Math.random()*22)|0);
+             const bh = 14 + ((Math.random()*maxH)|0);
+             const by = dir > 0 ? baselineY - bh : baselineY;
+             g.fillStyle = '#101c2e';
+             g.fillRect(x, by, bw, bh);
+             g.fillStyle = 'rgba(255,214,107,0.35)';
+             for(let wy=by+4; wy<by+bh-4; wy+=7){
+               for(let wx=x+3; wx<x+bw-3; wx+=6){
+                 if (Math.random() < 0.35) g.fillRect(wx, wy, 1, 2);
+               }
+             }
+             x += bw + 2;
+           }
+         }
          function buildRoadBuffer(){
            const f = fieldRect();
            const c = document.createElement('canvas');
@@ -476,8 +770,12 @@
          
            g.fillStyle = '#060a16'; g.fillRect(0,0,W,H);
            drawPixelNoise(g, 0, 0, W, H, 0.05, '#0a1020');
-         
+
            const roadX = f.x, roadY = f.y, roadW = f.w, roadH = f.h;
+
+           // distant skyline above and below the bridge
+           drawSkyline(g, 0, W, roadY, +1, Math.max(20, Math.min(90, roadY - 6)));
+           drawSkyline(g, 0, W, roadY + roadH, -1, Math.max(20, Math.min(70, H - (roadY + roadH) - 6)));
            g.fillStyle = '#1b2738'; g.fillRect(roadX, roadY, roadW, roadH);
            drawPixelNoise(g, roadX, roadY, roadW, roadH, 0.10, '#223046');
            drawPixelNoise(g, roadX, roadY, roadW, roadH, 0.06, '#101a2b');
@@ -524,7 +822,29 @@
            g.globalAlpha = 0.06; g.fillStyle = '#ffffff';
            for(let y=roadY; y<roadY+roadH; y+=18){ g.fillRect(roadX+8, y, roadW-16, 1); }
            g.globalAlpha = 1;
-         
+
+           // occasional blood-stain decals on the road surface
+           g.globalAlpha = 0.45; g.fillStyle = 'rgba(120,20,20,0.5)';
+           for(let i=0;i<5;i++){
+             const bx = roadX + 10 + Math.random()*(roadW-20);
+             const by = roadY + 10 + Math.random()*(roadH-20);
+             const r = 3 + Math.random()*4;
+             for(let k=0;k<4;k++){
+               g.beginPath();
+               g.arc(bx + (Math.random()-0.5)*r, by + (Math.random()-0.5)*r, r*0.6, 0, Math.PI*2);
+               g.fill();
+             }
+           }
+           g.globalAlpha = 1;
+
+           // soft top/bottom vignette for cinematic depth
+           const vig = g.createLinearGradient(0,0,0,H);
+           vig.addColorStop(0,    'rgba(0,0,0,0.55)');
+           vig.addColorStop(0.15, 'rgba(0,0,0,0)');
+           vig.addColorStop(0.85, 'rgba(0,0,0,0)');
+           vig.addColorStop(1,    'rgba(0,0,0,0.55)');
+           g.fillStyle = vig; g.fillRect(0,0,W,H);
+
            roadBuf = c;
          }
          
@@ -535,7 +855,7 @@
          
          /* ====== Game State ====== */
          let score=0, wave=1, lives=3;
-         const entities = { enemies:[], bullets:[], companions:[], barriers:[], perks:[] };
+         const entities = { enemies:[], bullets:[], companions:[], barriers:[], perks:[], particles:[], popups:[] };
          let player;
          let highScore=+(localStorage.getItem('highScore')||0); document.getElementById('highScore').textContent=highScore;
          
@@ -578,11 +898,13 @@
          /* ====== Player ====== */
          function createPlayer(){return{
            x:W/2, y:H-100,
-           fireRate:200, fireTimer:0, bulletsPerShot:1, spread:0, spreadMax:0.5, pierce:0,
+           fireRateMult:1, fireTimer:0, bulletsPerShot:0, spread:0, spreadMax:0.5, pierce:0, dmgMult:1,
            perks:{}, perkTimers:{},
            maxHp:100, hp:100, invuln:0,
            shootFlash:0,
-           spreadGaveBullet:false
+           spreadGaveBullet:false,
+           weapon:'pistol', weaponUntil:Infinity,
+           shielded:false, magnetActive:false, vampActive:false, multiActive:false
          };}
          
          /* ====== Enemies ====== */
@@ -591,6 +913,8 @@
            {hp:2,speed:105,score:20,tex:'z_bruiser', zag:true},
            {hp:3,speed:95, score:35,tex:'z_shambler',zag:true},
            {hp:5,speed:80, score:70,tex:'skeleton',  zag:false},
+           {hp:1,speed:210,score:25,tex:'runner',    zag:false},
+           {hp:9,speed:55, score:90,tex:'bloater',   zag:false, bloater:true, blastRadius:70, blastDmg:35},
          ];
          
          function spawnEnemySpaced(){
@@ -608,13 +932,13 @@
                if (Math.abs(e.x - x) < ENEMY_MIN_DX && Math.abs(e.y - y) < ENEMY_MIN_DY) { ok=false; break; }
              }
              if (ok){
-               entities.enemies.push({
+               entities.enemies.push(Object.assign({}, t, {
                  x, y,
                  hp:Math.ceil(t.hp*hpScale), maxHp:Math.ceil(t.hp*hpScale),
                  speed:t.speed*spdScale, score:Math.ceil(t.score*(1+(wave-1)*0.05)),
-                 tex:t.tex, zag:t.zag, zagDir:Math.random()<.5?-1:1,
+                 zagDir:Math.random()<.5?-1:1,
                  hitFlash:0, dieT:0, wobble:Math.random()*Math.PI*2
-               });
+               }));
                return true;
              }
            }
@@ -623,14 +947,15 @@
          
          /* ====== Perks / Drones / Barriers ====== */
          const PERKS={
-           rapid:{name:'Rapid Fire',apply(p){p.fireRate*=RAPID_COOLDOWN_FACTOR},revert(p){p.fireRate/=RAPID_COOLDOWN_FACTOR},icon:'rapid'},
-           bullet:{name:'Extra Bullet',apply(p){p.bulletsPerShot+=1},revert(p){p.bulletsPerShot=Math.max(1,p.bulletsPerShot-1)},icon:'bullet'},
+           rapid:{name:'Rapid Fire',apply(p){p.fireRateMult*=RAPID_COOLDOWN_FACTOR},revert(p){p.fireRateMult/=RAPID_COOLDOWN_FACTOR},icon:'rapid'},
+           bullet:{name:'Extra Bullet',apply(p){p.bulletsPerShot+=1},revert(p){p.bulletsPerShot=Math.max(0,p.bulletsPerShot-1)},icon:'bullet'},
            spread:{
            name:'Spread',
            apply(p){
-             // If we’re at a single shot, first Spread pickup grants +1 bullet
-             if (p.bulletsPerShot === 1) {
-               p.bulletsPerShot = 2;
+             // If the equipped weapon is currently a single-shot, first Spread pickup grants +1 bullet
+             const totalBullets = WEAPONS[p.weapon].bullets + p.bulletsPerShot;
+             if (totalBullets === 1) {
+               p.bulletsPerShot += 1;
                p.spreadGaveBullet = true;
              }
              p.spread = Math.min(p.spread + 0.25, p.spreadMax);
@@ -638,7 +963,7 @@
            revert(p){
              // Remove the bonus bullet only if Spread added it
              if (p.spreadGaveBullet) {
-               p.bulletsPerShot = Math.max(1, p.bulletsPerShot - 1);
+               p.bulletsPerShot = Math.max(0, p.bulletsPerShot - 1);
                p.spreadGaveBullet = false;
              }
              p.spread = 0;
@@ -667,15 +992,49 @@
            },revert(_p){},icon:'drone'},
            heal:{name:'Heal',apply(_p){lives=Math.min(lives+1,5)},revert(_p){},icon:'heal'},
            coin:{name:'Score',apply(_p){score+=500},revert(_p){},icon:'coin'},
+           pierce:{name:'Piercing Rounds',apply(p){p.pierce+=1},revert(p){p.pierce=Math.max(0,p.pierce-1)},icon:'pierce'},
+           damage:{name:'Damage Up',apply(p){p.dmgMult*=1.25},revert(p){p.dmgMult/=1.25},icon:'damage'},
+           shield:{name:'Shield',apply(p){p.shielded=true},revert(p){p.shielded=false},icon:'shield',single:true},
+           magnet:{name:'Magnet',apply(p){p.magnetActive=true},revert(p){p.magnetActive=false},icon:'magnet',single:true},
+           vamp:{name:'Lifesteal',apply(p){p.vampActive=true},revert(p){p.vampActive=false},icon:'vamp',single:true},
+           multi:{name:'Score x2',apply(p){p.multiActive=true},revert(p){p.multiActive=false},icon:'multi',single:true},
+           freeze:{name:'Freeze',apply(_p){freezeUntil=gameTime+4000},revert(_p){},icon:'freeze'},
          };
          const perkKeys = Object.keys(PERKS);
-         
+         const perkNameToKey = Object.fromEntries(perkKeys.map(k=>[PERKS[k].name,k]));
+         let freezeUntil = 0;
+
+         /* ====== Weapons (timed pickups, like perks) ====== */
+         const WEAPON_DURATION = 28000;
+         const WEAPONS = {
+           pistol:  {name:'Pistol',          fireRate:200, bullets:1, spreadAngle:0,    dmg:1,   kind:'bullet', pierce:0, vy:-7,    icon:'pistol',       sound:{hz:740,dur:35, type:'square'},   neverExpires:true, color:'#39f0ff', shape:'rect'},
+           smg:     {name:'SMG',             fireRate:90,  bullets:1, spreadAngle:0.12, dmg:0.6, kind:'bullet', pierce:0, vy:-7.5,  icon:'smg',          sound:{hz:820,dur:25, type:'square'},   color:'#9be8ff', shape:'rect'},
+           shotgun: {name:'Shotgun',         fireRate:480, bullets:5, spreadAngle:0.5,  dmg:1,   kind:'bullet', pierce:0, vy:-6.5,  icon:'shotgun',      sound:{hz:200,dur:90, type:'sawtooth'}, color:'#ffd66b', shape:'pellet'},
+           sniper:  {name:'Sniper Rifle',    fireRate:700, bullets:1, spreadAngle:0,    dmg:6,   kind:'bullet', pierce:3, vy:-11,   icon:'sniper',       sound:{hz:380,dur:140,type:'sawtooth'}, color:'#ff5d5d', shape:'streak'},
+           rocket:  {name:'Rocket Launcher', fireRate:900, bullets:1, spreadAngle:0,    dmg:3,   kind:'rocket', pierce:0, vy:-5.5,  icon:'rocket',       sound:{hz:140,dur:160,type:'sawtooth'}, splash:48, splashDmg:3, color:'#ff8c3b', shape:'rocket'},
+           flamethrower:{name:'Flamethrower',fireRate:40,  bullets:1, spreadAngle:0.3,  dmg:0.4, kind:'flame',  pierce:0, vy:-5,    icon:'flamethrower', sound:{hz:90, dur:20, type:'sawtooth'}, life:280, color:'#ff6a2b', shape:'flame'},
+         };
+         const weaponKeys = Object.keys(WEAPONS).filter(k=>k!=='pistol');
+
+         function equipWeapon(key){
+           const def = WEAPONS[key]; if(!def) return;
+           player.weapon = key;
+           player.weaponUntil = def.neverExpires ? Infinity : gameTime + WEAPON_DURATION;
+           requestHUD();
+           beep('weapon', 900, 70, 'triangle');
+         }
+
+         const WEAPON_CRATE_CHANCE = 0.18;
          function spawnBarrierSpaced(){
            const L=lanes();
-           const key=perkKeys[(Math.random()*perkKeys.length)|0];
+           const isWeapon = Math.random() < WEAPON_CRATE_CHANCE;
+           const kind = isWeapon ? 'weapon' : 'perk';
+           const key = isWeapon
+             ? weaponKeys[(Math.random()*weaponKeys.length)|0]
+             : perkKeys[(Math.random()*perkKeys.length)|0];
            const hp=3+Math.floor(wave*0.6);
            const w=8*PIX;
-         
+
            for (let attempt=0; attempt<8; attempt++){
              const x = Math.random()*(L.left.x2-L.left.x1-w)+L.left.x1;
              const y = L.y0 - 8*PIX - Math.random()*28;
@@ -685,16 +1044,16 @@
                if (Math.abs(R.x - x) < ENEMY_MIN_DX && Math.abs(R.y - y) < ENEMY_MIN_DY) { ok=false; break; }
              }
              if (ok){
-               entities.barriers.push({x, y, hp, maxHp:hp, key, t:Math.random()*Math.PI*2, hit:0});
+               entities.barriers.push({x, y, hp, maxHp:hp, key, kind, t:Math.random()*Math.PI*2, hit:0});
                return true;
              }
            }
            return false;
          }
-         
-         function spawnPerkDrop(x, y, key){
+
+         function spawnPerkDrop(x, y, key, kind){
            const shots = Math.min(6, 2 + Math.floor(wave/2)) + (Math.random()<0.4?1:0);
-           entities.perks.push({ key, x, y, shotsLeft: shots, t: Math.random()*Math.PI*2 });
+           entities.perks.push({ key, kind: kind||'perk', x, y, shotsLeft: shots, t: Math.random()*Math.PI*2 });
          }
          
          /* ====== Waves ====== */
@@ -707,11 +1066,24 @@
            director.tEnemy    = 0;
            director.tBarrier  = 200;
            wave=n; requestHUD(); layoutToRoad();
+           if (n > 1) triggerShake(5);
+           showWaveBanner(n);
          }
-         
+
+         let waveBannerTimer = null;
+         function showWaveBanner(n){
+           waveBannerEl.textContent = 'WAVE ' + n;
+           waveBannerEl.classList.remove('show');
+           // restart the CSS transition even if a banner is already showing
+           void waveBannerEl.offsetWidth;
+           waveBannerEl.classList.add('show');
+           if (waveBannerTimer) clearTimeout(waveBannerTimer);
+           waveBannerTimer = setTimeout(() => waveBannerEl.classList.remove('show'), 1400);
+         }
+
          /* ====== Player + Perk bookkeeping ====== */
          function restart(){
-           entities.enemies.length=0; entities.bullets.length=0; entities.companions.length=0; entities.barriers.length=0; entities.perks.length=0;
+           entities.enemies.length=0; entities.bullets.length=0; entities.companions.length=0; entities.barriers.length=0; entities.perks.length=0; entities.particles.length=0; entities.popups.length=0;
            director.pendingDrops.length=0; director.tPerkDrop=0;
            player=createPlayer(); score=0; wave=1; lives=3; gameOver=false; overEl.style.display='none';
            normalizeDroneSlots();
@@ -724,8 +1096,8 @@
            if (!def) return;
          
            // Consumables: apply instantly, no timers/HUD pill
-           if (key === 'heal' || key === 'coin') {
-             def.apply(player);                 // heal = +1 life (capped), coin = +500 score
+           if (key === 'heal' || key === 'coin' || key === 'freeze') {
+             def.apply(player);                 // heal = +1 life (capped), coin = +500 score, freeze = global slow
              // Defensive cleanup in case old versions left pills:
              const name = def.name;
              if (player.perks[name]) delete player.perks[name];
@@ -752,6 +1124,13 @@
            beep('perk', 860, 80, 'triangle');
          }
          
+         function checkWeaponExpiry(){
+           if (player.weapon !== 'pistol' && gameTime > player.weaponUntil){
+             player.weapon = 'pistol';
+             player.weaponUntil = Infinity;
+             requestHUD();
+           }
+         }
          function checkPerkExpiry(){
            const now=gameTime; // game-time
            for(const name in player.perkTimers){
@@ -770,12 +1149,35 @@
          /* ====== HUD (throttled) ====== */
          let hudDirty = true, lastHUD = 0, HUD_INTERVAL = 100;
          function requestHUD(){ hudDirty = true; }
+         const iconURLCache = {};
+         function iconURL(key){ return iconURLCache[key] ||= TEX.icon[key].toDataURL(); }
          function updateHUD(){
            scoreEl.textContent=score; waveEl.textContent=wave; livesEl.textContent=lives;
            hpEl.textContent=Math.round((player.hp/player.maxHp)*100);
+           lowHpEl.classList.toggle('pulse', !gameOver && (player.hp/player.maxHp) < 0.3);
            perksEl.innerHTML='';
            const now=gameTime;
-         
+
+           // Weapon pill — always shown so the player knows what's equipped
+           {
+             const wdef = WEAPONS[player.weapon];
+             const pill=document.createElement('div'); pill.className='perk-pill weapon-pill';
+             const row=document.createElement('div'); row.className='pill-row';
+             const icon = `<img class="pill-icon" src="${iconURL(wdef.icon)}">`;
+             if (player.weapon === 'pistol'){
+               row.innerHTML = `<span class="lbl">${icon}${wdef.name}</span><span>equipped</span>`;
+             } else {
+               const msLeft = Math.max(0, player.weaponUntil - now);
+               row.innerHTML = `<span class="lbl">${icon}${wdef.name}</span><span>${Math.ceil(msLeft/1000)}s</span>`;
+             }
+             const bar=document.createElement('div'); bar.className='bar';
+             const fill=document.createElement('span');
+             const pct = player.weapon==='pistol' ? 100 : Math.max(0, Math.min(100, ((player.weaponUntil-now)/WEAPON_DURATION)*100));
+             fill.style.width=pct+'%'; fill.style.background = player.weapon==='pistol' ? '#5b7a5b' : '#ffd66b';
+             bar.appendChild(fill); pill.appendChild(row); pill.appendChild(bar);
+             perksEl.appendChild(pill);
+           }
+
            for(const name in player.perks){
              const count=player.perks[name];
              const timers=player.perkTimers[name]||[];
@@ -785,13 +1187,15 @@
          
              const pill=document.createElement('div'); pill.className='perk-pill';
              const row=document.createElement('div'); row.className='pill-row';
-         
+             const pkey = perkNameToKey[name];
+             const icon = pkey ? `<img class="pill-icon" src="${iconURL(PERKS[pkey].icon)}">` : '';
+
              // Rapid HUD shows speed multiplier
              if (name === 'Rapid Fire') {
                const speedBoost = (Math.pow(RAPID_SPEED_FACTOR, count)).toFixed(2);
-               row.innerHTML = `<span>${name}</span><span>x${count} · speed x${speedBoost} · ${Math.ceil(msLeft/1000)}s</span>`;
+               row.innerHTML = `<span class="lbl">${icon}${name}</span><span>x${count} · speed x${speedBoost} · ${Math.ceil(msLeft/1000)}s</span>`;
              } else {
-               row.innerHTML=`<span>${name}</span><span>x${count} · ${Math.ceil(msLeft/1000)}s</span>`;
+               row.innerHTML=`<span class="lbl">${icon}${name}</span><span>x${count} · ${Math.ceil(msLeft/1000)}s</span>`;
              }
          
              const bar=document.createElement('div'); bar.className='bar';
@@ -800,7 +1204,7 @@
              perksEl.appendChild(pill);
            }
          
-           // Drone life pill (unchanged)
+           // Drone life pill
            if (entities.companions.length){
              let oldest = entities.companions[0];
              for (let i=1;i<entities.companions.length;i++){
@@ -811,7 +1215,8 @@
              const pct = Math.max(0, Math.min(100, (msLeft/DRONE_LIFE)*100));
              const pill=document.createElement('div'); pill.className='perk-pill';
              const row=document.createElement('div'); row.className='pill-row';
-             row.innerHTML=`<span>Drone</span><span>x${entities.companions.length} · ${Math.ceil(msLeft/1000)}s</span>`;
+             const droneIcon = `<img class="pill-icon" src="${iconURL('drone')}">`;
+             row.innerHTML=`<span class="lbl">${droneIcon}Drone</span><span>x${entities.companions.length} · ${Math.ceil(msLeft/1000)}s</span>`;
              const bar=document.createElement('div'); bar.className='bar';
              const fill=document.createElement('span'); fill.style.width=pct+'%';
              bar.appendChild(fill); pill.appendChild(row); pill.appendChild(bar);
@@ -826,7 +1231,76 @@
          const bulletPool = [];
          function getBullet(){ return bulletPool.length ? bulletPool.pop() : {}; }
          function freeBullet(b){ bulletPool.push(b); }
-         
+
+         /* ====== Particle Pool (muzzle flash, hit sparks, blood, explosions, drone glow) ====== */
+         const particlePool = [];
+         function getParticle(){ return particlePool.length ? particlePool.pop() : {}; }
+         function freeParticle(p){ particlePool.push(p); }
+
+         function spawnParticles(x, y, count, opts){
+           const { color='#fff', speed=80, life=300, size=2, spread=Math.PI*2, dir=0, gravity=0 } = opts||{};
+           for (let i=0;i<count;i++){
+             const p = getParticle();
+             const ang = dir + (Math.random()-0.5)*spread;
+             const spd = speed * (0.4 + Math.random()*0.6);
+             p.x=x; p.y=y;
+             p.vx=Math.cos(ang)*spd; p.vy=Math.sin(ang)*spd;
+             p.life=life*(0.6+Math.random()*0.5); p.maxLife=p.life;
+             p.size=size*(0.7+Math.random()*0.6);
+             p.color=color; p.gravity=gravity;
+             entities.particles.push(p);
+           }
+         }
+
+         /* ====== Screen shake ====== */
+         let shakeMag = 0;
+         function triggerShake(mag){ shakeMag = Math.max(shakeMag, mag); }
+
+         /* ====== Floating score/kill popups ====== */
+         function spawnPopup(x, y, text, color){
+           entities.popups.push({x, y, text, color, life:700, maxLife:700});
+         }
+
+         function applyRocketSplash(x, y, radius, dmg, excludeEnemy){
+           for (let i=entities.enemies.length-1;i>=0;i--){
+             const e = entities.enemies[i];
+             if (e===excludeEnemy || e.dieT>0) continue;
+             const ex=e.x+4*PIX, ey=e.y+5*PIX;
+             const dx=ex-x, dy=ey-y;
+             if (dx*dx+dy*dy <= radius*radius){
+               e.hp -= dmg; e.hitFlash=120;
+               if (e.hp<=0) killEnemy(e);
+             }
+           }
+         }
+
+         function killEnemy(e){
+           e.dieT = 260;
+           const gain = player.multiActive ? e.score*2 : e.score;
+           score += gain;
+           requestHUD();
+           beep('dead',120,120,'sawtooth');
+           spawnPopup(e.x+4*PIX, e.y, '+'+gain, player.multiActive ? '#ffe98a' : '#dfffe0');
+           spawnParticles(e.x+4*PIX, e.y+5*PIX, 7, {color:PALETTE.blood, speed:70, life:300, size:2, gravity:140});
+           if (player.vampActive) player.hp = Math.min(player.maxHp, player.hp + 4);
+           if (e.bloater && player.invuln<=0 && !player.shielded){
+             const dx = (e.x+4*PIX) - player.x, dy = (e.y+5*PIX) - player.y;
+             if (dx*dx+dy*dy <= e.blastRadius*e.blastRadius){
+               player.hp -= e.blastDmg;
+               beep('hurt',200,140,'sawtooth');
+               triggerShake(10);
+               spawnParticles(e.x+4*PIX, e.y+5*PIX, 18, {color:PALETTE.blood, speed:170, life:400, size:3, gravity:80});
+               if (player.hp<=0){
+                 lives--; requestHUD();
+                 if (lives<=0){ endGame(); } else { player.hp=player.maxHp; player.invuln=1500; }
+               } else { player.invuln = 300; requestHUD(); }
+             }
+           } else if (e.bloater){
+             // Bloater still bursts visually even if the player is out of blast range or shielded
+             spawnParticles(e.x+4*PIX, e.y+5*PIX, 14, {color:PALETTE.blood, speed:150, life:380, size:3, gravity:80});
+           }
+         }
+
          /* ====== Perk drop pacing ====== */
          function tryReleasePerkDrop(dt){
            if (!director.pendingDrops.length) return;
@@ -834,7 +1308,7 @@
            director.tPerkDrop -= dt;
            if (director.tPerkDrop > 0) return;
            const job = director.pendingDrops.shift();
-           spawnPerkDrop(job.x, job.y, job.key);
+           spawnPerkDrop(job.x, job.y, job.key, job.kind);
            director.tPerkDrop = PERK_DROP_COOLDOWN_MS;
          }
          
@@ -845,6 +1319,7 @@
            if(pointer.down){ const c=clampToField(pointer.x,pointer.y); player.x=c.x; player.y=c.y; }
          
            checkPerkExpiry();
+           checkWeaponExpiry();
          
            // === Director pacing ===
            director.tEnemy  -= dt;
@@ -865,29 +1340,57 @@
          
            if(player.invuln>0) player.invuln-=dt;
          
-           // === shooting (with visible 1st extra bullet when spread == 0) ===
+           // === shooting (weapon profile + perk modifiers layered on top) ===
            player.fireTimer -= dt;
            if (pointer.down && player.fireTimer <= 0) {
-             const baseSpread = player.spread;
-             const sepAngle   = (baseSpread === 0 && player.bulletsPerShot > 1) ? 0.15 : baseSpread;  // small divergence
-             const sepOffsetX = (baseSpread === 0 && player.bulletsPerShot > 1) ? 6 : 0;              // start offset
-         
-             for (let i = 0; i < player.bulletsPerShot; i++) {
-               const off = i - (player.bulletsPerShot - 1) / 2;
-         
+             const wdef = WEAPONS[player.weapon];
+             const totalBullets = Math.max(1, wdef.bullets + player.bulletsPerShot);
+             const baseSpread   = wdef.spreadAngle + player.spread;
+             const totalPierce  = wdef.pierce + player.pierce;
+             const dmg          = wdef.dmg * player.dmgMult;
+             const sepAngle     = (baseSpread === 0 && totalBullets > 1) ? 0.15 : baseSpread;  // small divergence
+             const sepOffsetX   = (baseSpread === 0 && totalBullets > 1) ? 6 : 0;               // start offset
+
+             for (let i = 0; i < totalBullets; i++) {
+               const off = i - (totalBullets - 1) / 2;
+
                const b = getBullet();
                b.x  = player.x + off * sepOffsetX;
                b.y  = player.y - 2 * PIX;
                b.vx = off * sepAngle * 3;
-               b.vy = -7;
-               b.c  = '#39f0ff';
+               b.vy = wdef.vy;
+               b.c  = wdef.color;
+               b.dmg = dmg;
+               b.pierceLeft = totalPierce;
+               b.kind = wdef.kind;
+               b.shape = wdef.shape || 'rect';
+               b.splash = wdef.splash || 0;
+               b.splashDmg = wdef.splashDmg || 0;
+               b.life = wdef.life || 0;
                b.alive = true;
                entities.bullets.push(b);
              }
-         
-             player.fireTimer = player.fireRate;
+
+             player.fireTimer = wdef.fireRate * player.fireRateMult;
              player.shootFlash = 60;
-             beep('shot', 740, 35, 'square');
+             beep('shot', wdef.sound.hz, wdef.sound.dur, wdef.sound.type);
+             const muzzleY = player.y - 5*PIX;
+             switch (wdef.shape){
+               case 'pellet':
+                 spawnParticles(player.x, muzzleY, 6, {color:wdef.color, speed:90, life:100, size:1.8, spread:1.1, dir:-Math.PI/2});
+                 break;
+               case 'rocket':
+                 spawnParticles(player.x, muzzleY, 5, {color:wdef.color, speed:50, life:180, size:3, spread:1.0, dir:-Math.PI/2});
+                 break;
+               case 'flame':
+                 spawnParticles(player.x, muzzleY, 3, {color:wdef.color, speed:40, life:90, size:2.5, spread:0.6, dir:-Math.PI/2});
+                 break;
+               case 'streak':
+                 spawnParticles(player.x, muzzleY, 1, {color:wdef.color, speed:30, life:90, size:1.4, spread:0.3, dir:-Math.PI/2});
+                 break;
+               default:
+                 spawnParticles(player.x, muzzleY, 2, {color:wdef.color, speed:60, life:120, size:2, spread:0.8, dir:-Math.PI/2});
+             }
            }
            if (player.shootFlash > 0) player.shootFlash -= dt;
          
@@ -910,8 +1413,10 @@
              d.timer-=dt;
              if(d.timer<=0){
                const b=getBullet(); b.x=d.x; b.y=d.y-2*PIX; b.vx=0; b.vy=-7; b.c='#7efc6c'; b.alive=true;
+               b.dmg=1; b.pierceLeft=0; b.kind='bullet'; b.shape='rect'; b.splash=0; b.splashDmg=0; b.life=0;
                entities.bullets.push(b); d.timer=d.fireRate;
              }
+             if (Math.random() < dt*0.012) spawnParticles(d.x, d.y+3*PIX, 1, {color:'#7efc6c', speed:10, life:220, size:1.5, spread:0.6, dir:Math.PI/2});
            }
          
            // bullets
@@ -919,6 +1424,7 @@
            for(let i=entities.bullets.length-1;i>=0;i--){
              const b=entities.bullets[i]; if(!b.alive){ entities.bullets.splice(i,1); continue; }
              b.x+=b.vx; b.y+=b.vy;
+             if(b.life){ b.life-=dt; if(b.life<=0){ b.alive=false; entities.bullets.splice(i,1); freeBullet(b); continue; } }
              if(b.y<f.y-20 || b.y>f.y+f.h+20){ b.alive=false; entities.bullets.splice(i,1); freeBullet(b); continue; }
          
              // perk drops
@@ -926,7 +1432,10 @@
                const p=entities.perks[pi], w=8*PIX,h=8*PIX;
                if(Math.abs(b.x-(p.x+w/2))<w/2 && Math.abs(b.y-(p.y+h/2))<h/2){
                  p.shotsLeft--; b.alive=false; entities.bullets.splice(i,1); freeBullet(b); beep('hit',560,45);
-                 if(p.shotsLeft<=0){ addPerkStack(p.key); entities.perks.splice(pi,1); }
+                 if(p.shotsLeft<=0){
+                   if (p.kind==='weapon') equipWeapon(p.key); else addPerkStack(p.key);
+                   entities.perks.splice(pi,1);
+                 }
                  break;
                }
              }
@@ -938,7 +1447,7 @@
                if(Math.abs(b.x-(R.x+w/2))<w/2 && Math.abs(b.y-(R.y+h/2))<h/2){
                  R.hp--; R.hit=160; b.alive=false; entities.bullets.splice(i,1); freeBullet(b); beep('hit',560,45);
                  if(R.hp<=0){
-                   director.pendingDrops.push({x:R.x, y:R.y, key:R.key}); // queued drop
+                   director.pendingDrops.push({x:R.x, y:R.y, key:R.key, kind:R.kind}); // queued drop
                    entities.barriers.splice(bi,1);
                  }
                  break;
@@ -950,8 +1459,19 @@
              for(let ei=entities.enemies.length-1;ei>=0;ei--){
                const e=entities.enemies[ei], w=8*PIX,h=10*PIX;
                if(e.dieT<=0 && Math.abs(b.x-(e.x+w/2))<w/2 && Math.abs(b.y-(e.y+h/2))<h/2){
-                 e.hp--; e.hitFlash=120; b.alive=false; entities.bullets.splice(i,1); freeBullet(b); beep('hit',600,45);
-                 if(e.hp<=0){ e.dieT=260; score+=e.score; requestHUD(); beep('dead',120,120,'sawtooth'); }
+                 e.hp -= b.dmg; e.hitFlash=120; beep('hit',600,45);
+                 spawnParticles(b.x, b.y, 3, {color:'#ffd66b', speed:90, life:140, size:1.6});
+                 if(e.hp<=0) killEnemy(e);
+                 if(b.kind==='rocket'){
+                   applyRocketSplash(e.x+w/2, e.y+h/2, b.splash, b.splashDmg, e);
+                   triggerShake(8);
+                   spawnParticles(e.x+w/2, e.y+h/2, 16, {color:'#ff8c3b', speed:160, life:380, size:3, gravity:60});
+                   b.alive=false;
+                 } else {
+                   b.pierceLeft--;
+                   if(b.pierceLeft<0) b.alive=false;
+                 }
+                 if(!b.alive){ entities.bullets.splice(i,1); freeBullet(b); }
                  break;
                }
              }
@@ -959,27 +1479,30 @@
          
            // enemies movement + contact
            const pRect={x:player.x-4*PIX, y:player.y-5*PIX, w:8*PIX, h:10*PIX};
+           const freezeFactor = gameTime < freezeUntil ? 0.15 : 1;
            for(let i=entities.enemies.length-1;i>=0;i--){
              const e=entities.enemies[i];
              if(e.dieT>0){ e.dieT-=dt; if(e.dieT<=0) entities.enemies.splice(i,1); continue; }
-             e.y += e.speed*dt/1000;
+             e.y += e.speed*freezeFactor*dt/1000;
              if(e.zag){
-               const L=lanes(); e.x += e.zagDir*dt*0.06;
+               const L=lanes(); e.x += e.zagDir*dt*0.06*freezeFactor;
                const minX=L.right.x1, maxX=L.right.x2-8*PIX; if(e.x<minX||e.x>maxX) e.zagDir*=-1;
              }
              e.wobble += dt/520;
              const sway = Math.sin(e.wobble)*0.4;
              e.x += sway;
-         
+
              if(e.y > f.y + f.h){ entities.enemies.splice(i,1); lives--; requestHUD(); if(lives<=0) endGame(); continue; }
              if(e.hitFlash>0) e.hitFlash -= dt;
-         
+
              if(rectsOverlap(pRect.x,pRect.y,pRect.w,pRect.h, e.x,e.y,8*PIX,10*PIX)){
-               if(player.invuln<=0){
+               if(player.invuln<=0 && !player.shielded){
                  const dps = CONTACT_DPS_BASE + (wave-1)*6;
                  player.hp -= dps * (dt/1000);
+                 triggerShake(2.5);
                  if(player.hp<=0){
                    lives--; requestHUD(); beep('hurt',240,120,'sawtooth');
+                   triggerShake(10);
                    if(lives<=0){ endGame(); } else { player.hp=player.maxHp; player.invuln=1500; }
                  } else { requestHUD(); }
                }
@@ -994,14 +1517,48 @@
              if(R.y > f.y + f.h + 40) entities.barriers.splice(i,1);
            }
          
-           // perk drops (descend)
+           // perk drops (descend, or steer toward player when Magnet is active)
            for(let i=entities.perks.length-1;i>=0;i--){
              const p=entities.perks[i];
-             p.y += (110 + wave*2) * dt/1000;
-             p.t += dt/400; p.x += Math.sin(p.t)*0.5;
+             const dxm = player.x - p.x, dym = player.y - p.y;
+             const dm = Math.hypot(dxm, dym);
+             if (player.magnetActive && dm > 1 && dm < 260){
+               const pull = 260;
+               p.x += (dxm/dm) * pull * dt/1000;
+               p.y += (dym/dm) * pull * dt/1000;
+             } else {
+               p.y += (110 + wave*2) * dt/1000;
+               p.t += dt/400; p.x += Math.sin(p.t)*0.5;
+             }
              if(p.y > f.y + f.h + 40) entities.perks.splice(i,1);
            }
-         
+
+           // particles (fade + drift)
+           for(let i=entities.particles.length-1;i>=0;i--){
+             const p=entities.particles[i];
+             p.life -= dt;
+             if (p.life<=0){ entities.particles.splice(i,1); freeParticle(p); continue; }
+             p.vy += (p.gravity||0)*dt/1000;
+             p.x += p.vx*dt/1000; p.y += p.vy*dt/1000;
+           }
+
+           // floating score popups (rise + fade)
+           for(let i=entities.popups.length-1;i>=0;i--){
+             const u=entities.popups[i];
+             u.life -= dt;
+             if (u.life<=0){ entities.popups.splice(i,1); continue; }
+             u.y -= 28*dt/1000;
+           }
+
+           // screen shake decay
+           if (shakeMag > 0) shakeMag = Math.max(0, shakeMag - dt*0.02);
+
+           // ambient drifting fog/embers
+           if (Math.random() < dt*0.0035){
+             spawnParticles(f.x + Math.random()*f.w, f.y + f.h + 10, 1,
+               {color:'rgba(255,170,110,0.45)', speed:14, life:6000, size:2.4, spread:0.25, dir:-Math.PI/2, gravity:-3});
+           }
+
            // wave advance
            if(!gameOver &&
               entities.enemies.length===0 && entities.barriers.length===0 && entities.perks.length===0 &&
@@ -1032,8 +1589,13 @@
          
          /* ====== Draw ====== */
          function draw(){
+           ctx.save();
+           if (shakeMag > 0.1){
+             ctx.translate((Math.random()-0.5)*shakeMag, (Math.random()-0.5)*shakeMag);
+           }
+
            if(roadBuf) ctx.drawImage(roadBuf, 0, 0, roadBuf.width, roadBuf.height, 0, 0, W, H);
-         
+
            // drones
            const df = TEX.droneFrames[((performance.now()/120)|0)%2];
            for(let i=0;i<entities.companions.length;i++){
@@ -1044,15 +1606,42 @@
            // player
            const blink = player.invuln>0 && ((performance.now()/100)|0)%2===0;
            if(!blink) ctx.drawImage(TEX.soldier, player.x-4*PIX, player.y-5*PIX);
-         
-           // muzzle flash
-           const barrelW = 2, barrelH = Math.floor(PIX*3.5);
-           const barrelX = Math.round(player.x - barrelW/2);
-           const barrelY = Math.round(player.y - 5*PIX - barrelH);
-           ctx.fillStyle = '#aab7cc'; ctx.fillRect(barrelX, barrelY, barrelW, barrelH);
-           if (player.shootFlash > 0){
-             const flashH = 2, flashY = barrelY - flashH - 1;
-             ctx.fillStyle = '#ffd66b'; ctx.fillRect(barrelX - 1, flashY, barrelW + 2, flashH);
+
+           // shield bubble
+           if (player.shielded){
+             const pulse = 1 + 0.08*Math.sin(performance.now()/180);
+             ctx.save();
+             ctx.strokeStyle = 'rgba(142,203,255,0.8)'; ctx.lineWidth = 2;
+             ctx.beginPath();
+             ctx.arc(player.x, player.y-2.5*PIX, 7*PIX*pulse, 0, Math.PI*2);
+             ctx.stroke();
+             ctx.restore();
+           }
+
+           // barrel + muzzle flash — geometry/color vary by equipped weapon
+           {
+             const wdef = WEAPONS[player.weapon];
+             let barrelW = 2, barrelLen = PIX*3.5, flashCol = '#ffd66b', flashW = 0;
+             switch (wdef.shape){
+               case 'pellet':  barrelW = 4; barrelLen = PIX*2.6; flashCol = '#ffd66b'; flashW = 3; break;
+               case 'streak':  barrelW = 2; barrelLen = PIX*5.2; flashCol = '#ff8a8a'; flashW = 1; break;
+               case 'rocket':  barrelW = 5; barrelLen = PIX*3;   flashCol = '#ff8c3b'; flashW = 4; break;
+               case 'flame':   barrelW = 4; barrelLen = PIX*2;   flashCol = '#ff6a2b'; flashW = 5; break;
+               default:        barrelW = 2; barrelLen = PIX*3.5; flashCol = '#ffd66b'; flashW = 1;
+             }
+             const barrelH = Math.floor(barrelLen);
+             const barrelX = Math.round(player.x - barrelW/2);
+             const barrelY = Math.round(player.y - 5*PIX - barrelH);
+             ctx.fillStyle = '#aab7cc'; ctx.fillRect(barrelX, barrelY, barrelW, barrelH);
+             if (wdef.shape === 'streak'){
+               ctx.fillStyle = '#5b6a80'; ctx.fillRect(barrelX - 1, barrelY + 3, barrelW + 2, 3);
+             }
+             if (player.shootFlash > 0){
+               const flashH = wdef.shape === 'flame' ? 5 : 2;
+               const flashY = barrelY - flashH - 1;
+               ctx.fillStyle = flashCol;
+               ctx.fillRect(barrelX - flashW, flashY, barrelW + flashW*2, flashH);
+             }
            }
          
            // player hp bar
@@ -1061,16 +1650,39 @@
            ctx.fillStyle='#551a1a'; ctx.fillRect(px,py,pw,4);
            ctx.fillStyle='#ff3b3b'; ctx.fillRect(px,py,pw*(player.hp/player.maxHp),4);
          
-           // bullets
+           // bullets — shape varies by weapon
            for(let i=0;i<entities.bullets.length;i++){
              const b = entities.bullets[i]; if(!b.alive) continue;
-             ctx.fillStyle = b.c || '#39f0ff'; ctx.fillRect(b.x - 1.5, b.y - 5, 3, 10);
+             ctx.fillStyle = b.c || '#39f0ff';
+             switch (b.shape){
+               case 'pellet':
+                 ctx.beginPath(); ctx.arc(b.x, b.y, 2, 0, Math.PI*2); ctx.fill();
+                 break;
+               case 'streak':
+                 ctx.fillRect(b.x - 1, b.y - 14, 2, 18);
+                 ctx.globalAlpha = 0.35; ctx.fillRect(b.x - 0.5, b.y - 20, 1, 8); ctx.globalAlpha = 1;
+                 break;
+               case 'rocket':
+                 ctx.fillRect(b.x - 2.5, b.y - 7, 5, 12);
+                 ctx.fillStyle = '#ffd66b'; ctx.globalAlpha = 0.6;
+                 ctx.fillRect(b.x - 1.5, b.y + 5, 3, 6 + Math.random()*4);
+                 ctx.globalAlpha = 1;
+                 break;
+               case 'flame':
+                 ctx.globalAlpha = 0.75;
+                 ctx.beginPath(); ctx.arc(b.x + (Math.random()-0.5)*2, b.y, 3 + Math.random()*1.5, 0, Math.PI*2); ctx.fill();
+                 ctx.globalAlpha = 1;
+                 break;
+               default:
+                 ctx.fillRect(b.x - 1.5, b.y - 5, 3, 10);
+             }
            }
          
            // enemies
            for(let i=0;i<entities.enemies.length;i++){
              const e=entities.enemies[i];
-             const tex = e.tex==='z_shambler'?TEX.z_shambler : e.tex==='z_bruiser'?TEX.z_bruiser : TEX.skeleton;
+             const frames = TEX.zombieFrames[e.tex];
+             const tex = frames ? frames[((performance.now()/180 + i*53)|0)%2] : TEX[e.tex];
              ctx.globalAlpha = e.dieT>0 ? Math.max(0,e.dieT/260) : 1;
              ctx.drawImage(tex, e.x, e.y);
              ctx.globalAlpha=1;
@@ -1079,27 +1691,32 @@
              if(e.hitFlash>0) drawFlashOverlay(e.x, e.y, tex.width, tex.height, Math.min(0.35, e.hitFlash/120*0.35));
            }
          
-           // crates (barriers)
+           // crates (barriers) — wood crate for perks, steel ammo box for weapons
            for(let i=0;i<entities.barriers.length;i++){
              const R=entities.barriers[i];
+             const isWeaponCrate = R.kind === 'weapon';
+             const cBody = isWeaponCrate ? '#3a4452' : PALETTE.wd2;
+             const cEdge = isWeaponCrate ? '#1c232e' : PALETTE.wd1;
+             const cStripe = isWeaponCrate ? '#5a6b80' : PALETTE.wd3;
+             const cCorner = isWeaponCrate ? '#ffd66b' : '#3b2a1a';
              ctx.save();
              const pulse = 1 + 0.04*Math.sin(R.t*1.1);
              const wobble = R.hit>0 ? Math.sin(R.t*12)*(R.hit/160)*2 : 0;
              ctx.translate(R.x + 4*PIX, R.y + 4*PIX + wobble);
              ctx.scale(pulse, pulse);
              const w=8*PIX,h=8*PIX;
-             ctx.fillStyle=PALETTE.wd2; ctx.fillRect(-4*PIX,-4*PIX,w,h);
-             ctx.strokeStyle=PALETTE.wd1; ctx.lineWidth=2; ctx.strokeRect(-4*PIX+1,-4*PIX+1,w-2,h-2);
-             ctx.fillStyle=PALETTE.wd3;
+             ctx.fillStyle=cBody; ctx.fillRect(-4*PIX,-4*PIX,w,h);
+             ctx.strokeStyle=cEdge; ctx.lineWidth=2; ctx.strokeRect(-4*PIX+1,-4*PIX+1,w-2,h-2);
+             ctx.fillStyle=cStripe;
              ctx.fillRect(-4*PIX, -2*PIX-1, w, 3);
              ctx.fillRect(-4*PIX,  0*PIX-1, w, 3);
              ctx.fillRect(-4*PIX,  2*PIX-1, w, 3);
-             ctx.fillStyle=PALETTE.wd1;
+             ctx.fillStyle=cEdge;
              for(let k=-4;k<=4;k++){
                ctx.fillRect(-3*PIX+k, -4*PIX+k, 2, 2);
                ctx.fillRect( 3*PIX-k, -4*PIX+k, 2, 2);
              }
-             ctx.fillStyle='#3b2a1a';
+             ctx.fillStyle=cCorner;
              const n=2;
              ctx.fillRect(-4*PIX+n,-4*PIX+n,2,2);
              ctx.fillRect( 4*PIX-n-2,-4*PIX+n,2,2);
@@ -1125,6 +1742,16 @@
                spread:'rgba(126,252,108,0.18)',
                coin:  'rgba(255,235,138,0.22)',
                drone: 'rgba(57,240,255,0.18)',
+               pierce:'rgba(170,183,204,0.18)',
+               damage:'rgba(255,93,93,0.20)',
+               shield:'rgba(142,203,255,0.20)',
+               magnet:'rgba(180,107,255,0.18)',
+               vamp:  'rgba(180,107,255,0.18)',
+               multi: 'rgba(255,235,138,0.22)',
+               freeze:'rgba(142,203,255,0.22)',
+               smg:'rgba(207,231,255,0.18)', shotgun:'rgba(255,214,107,0.18)',
+               sniper:'rgba(255,93,93,0.18)', rocket:'rgba(255,140,59,0.20)',
+               flamethrower:'rgba(255,140,59,0.22)',
              };
              const strokeMap = {
                heal:  '#ff5d5d',
@@ -1133,9 +1760,20 @@
                spread:'#7efc6c',
                coin:  '#ffeb8a',
                drone: '#39f0ff',
+               pierce:'#aab7cc',
+               damage:'#ff5d5d',
+               shield:'#8ecbff',
+               magnet:'#b46bff',
+               vamp:  '#b46bff',
+               multi: '#ffeb8a',
+               freeze:'#8ecbff',
+               smg:'#cfe7ff', shotgun:'#ffd66b',
+               sniper:'#ff5d5d', rocket:'#ff8c3b',
+               flamethrower:'#ff8c3b',
              };
-         
-             const iconCanvas = TEX.icon[PERKS[p.key].icon];
+
+             const def = p.kind==='weapon' ? WEAPONS[p.key] : PERKS[p.key];
+             const iconCanvas = TEX.icon[def.icon];
              const bw = Math.max(9 * PIX, iconCanvas.width + 2 * PIX);
              const bh = Math.max(9 * PIX, iconCanvas.height + 2 * PIX);
              const rx = 6;
@@ -1160,7 +1798,30 @@
          
              ctx.restore();
            }
-         
+
+           // particles (muzzle flash, sparks, blood, explosions, drone glow)
+           for(let i=0;i<entities.particles.length;i++){
+             const pa=entities.particles[i];
+             ctx.globalAlpha = Math.max(0, pa.life/pa.maxLife);
+             ctx.fillStyle = pa.color;
+             ctx.fillRect(pa.x-pa.size/2, pa.y-pa.size/2, pa.size, pa.size);
+           }
+           ctx.globalAlpha = 1;
+
+           // floating score popups
+           ctx.font = 'bold 13px monospace';
+           ctx.textAlign = 'center';
+           for(let i=0;i<entities.popups.length;i++){
+             const u=entities.popups[i];
+             ctx.globalAlpha = Math.max(0, u.life/u.maxLife);
+             ctx.fillStyle = '#000';
+             ctx.fillText(u.text, u.x+1, u.y+1);
+             ctx.fillStyle = u.color;
+             ctx.fillText(u.text, u.x, u.y);
+           }
+           ctx.globalAlpha = 1;
+           ctx.textAlign = 'left';
+
            // road tip
            const f = fieldRect();
            const tip = 'Shoot crates to get perks! (Click/Tap and Hold to Move)';
@@ -1171,11 +1832,15 @@
            const ty = f.y + f.h - 12;
            ctx.fillText(tip, tx, ty);
            ctx.restore();
+
+           ctx.restore();
          }
          
          /* ====== End / Loop ====== */
          function endGame(){
            gameOver=true; overEl.style.display='block';
+           waveBannerEl.classList.remove('show');
+           if (waveBannerTimer) clearTimeout(waveBannerTimer);
            if(score>highScore){ highScore=score; localStorage.setItem('highScore',highScore); document.getElementById('highScore').textContent=highScore; }
            requestHUD();
          }

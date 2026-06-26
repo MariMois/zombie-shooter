@@ -136,8 +136,7 @@
          const FIELD_H = () => canvas.height/Math.min(window.devicePixelRatio||1, DPR_CAP) - 40;
          const PLAYER_V_LIMIT = 0.75; // lower 25% playable
          const PERK_DURATION = 60000;
-         const DRONE_LIFE = 60000;
-         const MAX_DRONES = 3;
+         const MAX_SOLDIERS = 5;
          const CONTACT_DPS_BASE = 35;
          
          /* New: Rapid numbers */
@@ -150,13 +149,9 @@
          const ENEMY_SPAWN_BASE_MS = 420;
          const ENEMY_SPAWN_RANDOM_MS = 220;
          const MAX_SIMULT_ENEMIES = 12;
-         
-         const BARRIER_SPAWN_BASE_MS = 700;
-         const BARRIER_SPAWN_RANDOM_MS = 300;
-         
-         const MAX_PERK_DROPS = 4;
-         const PERK_DROP_COOLDOWN_MS = 350;
-         
+
+         const ROADBLOCK_ENTER_SPEED = 150; // px/s while sliding into resting position
+
          /* ====== Field helpers ====== */
          function fieldRect(){ const w=FIELD_W, h=FIELD_H(); return {x:(W-w)/2, y:(H-h)/2, w, h}; }
          function clampToField(px,py){
@@ -316,8 +311,7 @@
          };
 
          /* ====== Pixel-grid sprite builder helpers ======
-            Sprites are authored at higher resolution (24x30 for characters,
-            14x10 for the drone) by painting block/pixel commands into a
+            Sprites are authored at higher resolution (24x30 for characters) by painting block/pixel commands into a
             blank grid then mirroring the left half — far less error-prone
             than hand-typing hundreds of literal cells, and keeps both
             walk-cycle frames of a type in sync since they share one builder. */
@@ -558,25 +552,6 @@
          const BLOATER_A = buildBloater(0);
          const BLOATER_B = buildBloater(1);
 
-         /* Drones (two frames, rotor-blur shimmer) */
-         function buildDrone(frame){
-           const g = blankGrid(14,10);
-           fillBlock(g,5,0,2,1,'gr2');
-           fillBlock(g,4,1,3,1,'gr');
-           fillBlock(g,3,2,4,1,'gr');
-           fillBlock(g,2,3,5,1,'gr');
-           fillBlock(g,3,4,4,2,'gr');
-           setPx(g,5,4,'c'); setPx(g,5,5,'c');
-           fillBlock(g,4,6,3,1,'gr2');
-           fillBlock(g,3,7,4,1,'gr');
-           mirrorRight(g);
-           if (frame===0){ setPx(g,1,3,'st2'); setPx(g,12,3,'gr2'); }
-           else { setPx(g,1,3,'gr2'); setPx(g,12,3,'st2'); }
-           return g;
-         }
-         const DRONE_FRAME_A = buildDrone(0);
-         const DRONE_FRAME_B = buildDrone(1);
-
          /* ====== PERK ICONS (updated, centered, readable) ====== */
          const ICONS = {
          /* HEAL — 7x7 pixel heart (balanced and readable) */
@@ -644,13 +619,15 @@
          ],
          
          
-           /* DRONE — keep existing recognizable sprite */
-           drone: [
-             [0,0,'gr2',0,'gr2',0,0],
-             [0,'gr','gr','c','gr','gr',0],
-             ['gr2','gr',0,'c',0,'gr','gr2'],
-             [0,'gr','gr','c','gr','gr',0],
-             [0,0,'gr2',0,'gr2',0,0],
+           /* SOLDIER — helmet + face, recognizable ally silhouette */
+           soldier: [
+             [0,0,'gg','gg','gg',0,0],
+             [0,'gg','g','g','g','gg',0],
+             ['gg','g','g','g','g','g','gg'],
+             ['k','k','k','k','k','k','k'],
+             [0,'sk','sk','sk','sk','sk',0],
+             [0,0,'k',0,'k',0,0],
+             [0,0,0,'k',0,0,0],
            ],
 
            /* PIERCE — yellow arrow with silver piercing lines */
@@ -819,7 +796,6 @@
            skeleton:   renderGridToCanvas(SKELETON, 2),
            runner:     renderGridToCanvas(RUNNER_A, 2),
            bloater:    renderGridToCanvas(BLOATER_A, 2),
-           droneFrames: [renderGridToCanvas(DRONE_FRAME_A, 3), renderGridToCanvas(DRONE_FRAME_B, 3)],
            zombieFrames: {
              z_shambler: [renderGridToCanvas(Z_SHAMBLER, 2), renderGridToCanvas(Z_SHAMBLER_B, 2)],
              z_bruiser:  [renderGridToCanvas(Z_BRUISER, 2),  renderGridToCanvas(Z_BRUISER_B, 2)],
@@ -833,7 +809,7 @@
              rapid:  renderGridToCanvas(ICONS.rapid),
              spread: renderGridToCanvas(ICONS.spread),
              coin:   renderGridToCanvas(ICONS.coin),
-             drone:  renderGridToCanvas(ICONS.drone),
+             soldier: renderGridToCanvas(ICONS.soldier),
              pierce: renderGridToCanvas(ICONS.pierce),
              damage: renderGridToCanvas(ICONS.damage),
              shield: renderGridToCanvas(ICONS.shield),
@@ -1032,38 +1008,28 @@
          
          /* ====== Game State ====== */
          let score=0, wave=1, lives=3;
-         const entities = { enemies:[], bullets:[], companions:[], barriers:[], perks:[], particles:[], popups:[], shockwaves:[] };
+         const entities = { enemies:[], bullets:[], companions:[], barriers:[], particles:[], popups:[], shockwaves:[] };
          let player;
          let highScore=+(localStorage.getItem('highScore')||0); document.getElementById('highScore').textContent=highScore;
          
-         /* ====== Drone helpers ====== */
-         function nextFreeDroneSlot() {
+         /* ====== Soldier squad helpers ====== */
+         function nextFreeSoldierSlot() {
            const used = new Set(entities.companions.map(d => d.slot));
-           for (let s = 0; s < MAX_DRONES; s++) if (!used.has(s)) return s;
+           for (let s = 0; s < MAX_SOLDIERS; s++) if (!used.has(s)) return s;
            return null;
          }
-         function normalizeDroneSlots() {
-           entities.companions
-             .sort((a,b)=>a.created - b.created)
-             .forEach((d,i)=> d.slot = i);
+         function normalizeSoldierSlots() {
+           entities.companions.forEach((d,i)=> d.slot = i);
          }
          
          /* ====== Spawn Director ====== */
          const director = {
            qEnemies: 0,
-           qBarriers: 0,
            tEnemy: 0,
-           tBarrier: 0,
-           tPerkDrop: 0,
-           pendingDrops: [], // {x,y,key}
          };
          function enemySpawnCooldown() {
            const accel = Math.max(0.65, 1 - (wave - 1) * 0.03);
            return ENEMY_SPAWN_BASE_MS * accel + Math.random()*ENEMY_SPAWN_RANDOM_MS;
-         }
-         function barrierSpawnCooldown() {
-           const accel = Math.max(0.75, 1 - (wave - 1) * 0.02);
-           return BARRIER_SPAWN_BASE_MS * accel + Math.random()*BARRIER_SPAWN_RANDOM_MS;
          }
          
          /* ====== Lanes ====== */
@@ -1148,25 +1114,13 @@
            icon:'spread',
            single:true
          },
-           drone:{name:'Drone',apply(p){
-             if (entities.companions.length < MAX_DRONES){
-               const slot = nextFreeDroneSlot();
-               entities.companions.push({
-                 slot: slot ?? entities.companions.length,
-                 created: gameTime,        // game-time
-                 life: DRONE_LIFE,
-                 fireRate: 550,
-                 timer: 0
-               });
-             } else {
-               let oldest = 0;
-               for (let i = 1; i < entities.companions.length; i++)
-                 if (entities.companions[i].created < entities.companions[oldest].created) oldest = i;
-               entities.companions[oldest].created = gameTime; // refresh
-               entities.companions[oldest].timer = 0;
+           soldier:{name:'Soldier',apply(p){
+             if (entities.companions.length < MAX_SOLDIERS){
+               const slot = nextFreeSoldierSlot();
+               entities.companions.push({ slot: slot ?? entities.companions.length, fireTimer: 0 });
+               normalizeSoldierSlots();
              }
-             normalizeDroneSlots();
-           },revert(_p){},icon:'drone'},
+           },revert(_p){},icon:'soldier'},
            heal:{name:'Heal',apply(_p){lives=Math.min(lives+1,5)},revert(_p){},icon:'heal'},
            coin:{name:'Score',apply(_p){score+=500},revert(_p){},icon:'coin'},
            pierce:{name:'Piercing Rounds',apply(p){p.pierce+=1},revert(p){p.pierce=Math.max(0,p.pierce-1)},icon:'pierce'},
@@ -1202,46 +1156,36 @@
          }
 
          const WEAPON_CRATE_CHANCE = 0.18;
-         function spawnBarrierSpaced(){
+         function spawnNextRoadblock(){
            const L=lanes();
            const isWeapon = Math.random() < WEAPON_CRATE_CHANCE;
            const kind = isWeapon ? 'weapon' : 'perk';
            const key = isWeapon
              ? weaponKeys[(Math.random()*weaponKeys.length)|0]
              : perkKeys[(Math.random()*perkKeys.length)|0];
-           const hp=3+Math.floor(wave*0.6);
-           const w=8*PIX;
-
-           for (let attempt=0; attempt<8; attempt++){
-             const x = Math.random()*(L.left.x2-L.left.x1-w)+L.left.x1;
-             const y = L.y0 - 8*PIX - Math.random()*28;
-             let ok = true;
-             for (let i=0;i<entities.barriers.length;i++){
-               const R = entities.barriers[i];
-               if (Math.abs(R.x - x) < ENEMY_MIN_DX && Math.abs(R.y - y) < ENEMY_MIN_DY) { ok=false; break; }
-             }
-             if (ok){
-               entities.barriers.push({x, y, hp, maxHp:hp, key, kind, t:Math.random()*Math.PI*2, hit:0});
-               return true;
-             }
-           }
-           return false;
+           const hp = 2 + Math.floor(Math.random()*6) + Math.floor(wave*0.3);
+           const x = L.left.x1 + (L.left.x2 - L.left.x1 - 8*PIX)/2;
+           const restY = L.y0 + 12*PIX;
+           entities.barriers.push({
+             x, y: L.y0 - 8*PIX, restY,
+             state:'entering', hp, maxHp:hp, key, kind, t:Math.random()*Math.PI*2, hit:0
+           });
          }
 
-         function spawnPerkDrop(x, y, key, kind){
-           const shots = Math.min(6, 2 + Math.floor(wave/2)) + (Math.random()<0.4?1:0);
-           entities.perks.push({ key, kind: kind||'perk', x, y, shotsLeft: shots, t: Math.random()*Math.PI*2 });
+         function grantRoadblockReward(R){
+           if (R.kind === 'weapon') equipWeapon(R.key); else addPerkStack(R.key);
+           const def = R.kind==='weapon' ? WEAPONS[R.key] : PERKS[R.key];
+           spawnPopup(R.x+4*PIX, R.y, def.name, '#ffe98a');
+           spawnParticles(R.x+4*PIX, R.y+4*PIX, 12, {color:'#ffd66b', speed:120, life:320, size:2.4, gravity:60});
+           spawnShockwave(R.x+4*PIX, R.y+4*PIX, 40, '#ffd66b');
          }
          
          /* ====== Waves ====== */
          function spawnWave(n){
            const enemiesCount=6+Math.floor(n*1.8);
-           const barriersCount=2+Math.floor(n*0.6);
-         
-           director.qEnemies  = enemiesCount;
-           director.qBarriers = barriersCount;
-           director.tEnemy    = 0;
-           director.tBarrier  = 200;
+
+           director.qEnemies = enemiesCount;
+           director.tEnemy   = 0;
            wave=n; requestHUD(); layoutToRoad();
            if (n > 1) triggerShake(5);
            showWaveBanner(n);
@@ -1260,10 +1204,10 @@
 
          /* ====== Player + Perk bookkeeping ====== */
          function restart(){
-           entities.enemies.length=0; entities.bullets.length=0; entities.companions.length=0; entities.barriers.length=0; entities.perks.length=0; entities.particles.length=0; entities.popups.length=0; entities.shockwaves.length=0;
-           director.pendingDrops.length=0; director.tPerkDrop=0;
+           entities.enemies.length=0; entities.bullets.length=0; entities.companions.length=0; entities.barriers.length=0; entities.particles.length=0; entities.popups.length=0; entities.shockwaves.length=0;
            player=createPlayer(); score=0; wave=1; lives=3; gameOver=false; overEl.style.display='none';
-           normalizeDroneSlots();
+           normalizeSoldierSlots();
+           spawnNextRoadblock();
            spawnWave(wave); requestHUD(); layoutToRoad();
          }
          
@@ -1287,12 +1231,12 @@
          
            // Normal stacking/caps for timed perks
            if (def.single && (player.perks[def.name] || 0) >= 1) return;
-           if (key !== 'drone' && (player.perks[def.name] || 0) >= 10) return;
-         
+           if (key !== 'soldier' && (player.perks[def.name] || 0) >= 10) return;
+
            def.apply(player);
-         
-           // Drone lifespan is managed separately; no timer pill
-           if (key !== 'drone') {
+
+           // Soldier squad size is managed separately; no timer pill
+           if (key !== 'soldier') {
              player.perks[def.name] = (player.perks[def.name] || 0) + 1;
              (player.perkTimers[def.name] ||= []).push(gameTime); // game-time timestamp
            }
@@ -1381,19 +1325,13 @@
              perksEl.appendChild(pill);
            }
          
-           // Drone life pill
+           // Soldier squad pill
            if (entities.companions.length){
-             let oldest = entities.companions[0];
-             for (let i=1;i<entities.companions.length;i++){
-               if (entities.companions[i].created < oldest.created) oldest = entities.companions[i];
-             }
-             const msAlive = now - oldest.created;
-             const msLeft = Math.max(0, DRONE_LIFE - msAlive);
-             const pct = Math.max(0, Math.min(100, (msLeft/DRONE_LIFE)*100));
+             const pct = Math.max(0, Math.min(100, (entities.companions.length/MAX_SOLDIERS)*100));
              const pill=document.createElement('div'); pill.className='perk-pill';
              const row=document.createElement('div'); row.className='pill-row';
-             const droneIcon = `<img class="pill-icon" src="${iconURL('drone')}">`;
-             row.innerHTML=`<span class="lbl">${droneIcon}Drone</span><span>x${entities.companions.length} · ${Math.ceil(msLeft/1000)}s</span>`;
+             const soldierIcon = `<img class="pill-icon" src="${iconURL('soldier')}">`;
+             row.innerHTML=`<span class="lbl">${soldierIcon}Soldiers</span><span>x${entities.companions.length} / ${MAX_SOLDIERS}</span>`;
              const bar=document.createElement('div'); bar.className='bar';
              const fill=document.createElement('span'); fill.style.width=pct+'%';
              bar.appendChild(fill); pill.appendChild(row); pill.appendChild(bar);
@@ -1409,7 +1347,7 @@
          function getBullet(){ return bulletPool.length ? bulletPool.pop() : {}; }
          function freeBullet(b){ bulletPool.push(b); }
 
-         /* ====== Particle Pool (muzzle flash, hit sparks, blood, explosions, drone glow) ====== */
+         /* ====== Particle Pool (muzzle flash, hit sparks, blood, explosions, ally glow) ====== */
          const particlePool = [];
          function getParticle(){ return particlePool.length ? particlePool.pop() : {}; }
          function freeParticle(p){ particlePool.push(p); }
@@ -1485,16 +1423,60 @@
            }
          }
 
-         /* ====== Perk drop pacing ====== */
-         function tryReleasePerkDrop(dt){
-           if (!director.pendingDrops.length) return;
-           if (entities.perks.length >= MAX_PERK_DROPS) return;
-           director.tPerkDrop -= dt;
-           if (director.tPerkDrop > 0) return;
-           const job = director.pendingDrops.shift();
-           spawnPerkDrop(job.x, job.y, job.key, job.kind);
-           director.tPerkDrop = PERK_DROP_COOLDOWN_MS;
+         /* ====== Shared firing logic (player + soldiers use the same loadout) ====== */
+         function fireWeaponShot(x, y, opts){
+           const silent = !!(opts && opts.silent);
+           const wdef = WEAPONS[player.weapon];
+           const totalBullets = Math.max(1, wdef.bullets + player.bulletsPerShot);
+           const baseSpread   = wdef.spreadAngle + player.spread;
+           const totalPierce  = wdef.pierce + player.pierce;
+           const dmg          = wdef.dmg * player.dmgMult;
+           const sepAngle     = (baseSpread === 0 && totalBullets > 1) ? 0.15 : baseSpread;
+           const sepOffsetX   = (baseSpread === 0 && totalBullets > 1) ? 6 : 0;
+
+           for (let i = 0; i < totalBullets; i++) {
+             const off = i - (totalBullets - 1) / 2;
+             const b = getBullet();
+             b.x  = x + off * sepOffsetX;
+             b.y  = y - 2 * PIX;
+             b.vx = off * sepAngle * 3;
+             b.vy = wdef.vy;
+             b.c  = wdef.color;
+             b.dmg = dmg;
+             b.pierceLeft = totalPierce;
+             b.kind = wdef.kind;
+             b.shape = wdef.shape || 'rect';
+             b.splash = wdef.splash || 0;
+             b.splashDmg = wdef.splashDmg || 0;
+             b.life = wdef.life || 0;
+             b.homing = player.magnetActive;
+             b.alive = true;
+             entities.bullets.push(b);
+           }
+
+           if (silent) return;
+
+           player.shootFlash = 60;
+           beep('shot', wdef.sound.hz, wdef.sound.dur, wdef.sound.type);
+           const muzzleY = y - 5*PIX;
+           switch (wdef.shape){
+             case 'pellet':
+               spawnParticles(x, muzzleY, 6, {color:wdef.color, speed:90, life:100, size:1.8, spread:1.1, dir:-Math.PI/2});
+               break;
+             case 'rocket':
+               spawnParticles(x, muzzleY, 5, {color:wdef.color, speed:50, life:180, size:3, spread:1.0, dir:-Math.PI/2});
+               break;
+             case 'flame':
+               spawnParticles(x, muzzleY, 3, {color:wdef.color, speed:40, life:90, size:2.5, spread:0.6, dir:-Math.PI/2});
+               break;
+             case 'streak':
+               spawnParticles(x, muzzleY, 1, {color:wdef.color, speed:30, life:90, size:1.4, spread:0.3, dir:-Math.PI/2});
+               break;
+             default:
+               spawnParticles(x, muzzleY, 2, {color:wdef.color, speed:60, life:120, size:2, spread:0.8, dir:-Math.PI/2});
+           }
          }
+
          
          /* ====== Update ====== */
          function update(dt){
@@ -1506,139 +1488,80 @@
            checkWeaponExpiry();
          
            // === Director pacing ===
-           director.tEnemy  -= dt;
-           director.tBarrier-= dt;
-         
+           director.tEnemy -= dt;
+
            const enemyCap = Math.round(MAX_SIMULT_ENEMIES + (wave-1)*0.8);
            if (director.qEnemies > 0 && director.tEnemy <= 0 && entities.enemies.length < enemyCap){
              const ok = spawnEnemySpaced();
              director.tEnemy = enemySpawnCooldown();
              if (ok) director.qEnemies--;
            }
-           if (director.qBarriers > 0 && director.tBarrier <= 0){
-             const okB = spawnBarrierSpaced();
-             director.tBarrier = barrierSpawnCooldown();
-             if (okB) director.qBarriers--;
-           }
-           tryReleasePerkDrop(dt);
-         
+           if (entities.barriers.length === 0) spawnNextRoadblock();
+
            if(player.invuln>0) player.invuln-=dt;
-         
+
            // === shooting (weapon profile + perk modifiers layered on top) ===
            player.fireTimer -= dt;
            if (pointer.down && player.fireTimer <= 0) {
-             const wdef = WEAPONS[player.weapon];
-             const totalBullets = Math.max(1, wdef.bullets + player.bulletsPerShot);
-             const baseSpread   = wdef.spreadAngle + player.spread;
-             const totalPierce  = wdef.pierce + player.pierce;
-             const dmg          = wdef.dmg * player.dmgMult;
-             const sepAngle     = (baseSpread === 0 && totalBullets > 1) ? 0.15 : baseSpread;  // small divergence
-             const sepOffsetX   = (baseSpread === 0 && totalBullets > 1) ? 6 : 0;               // start offset
-
-             for (let i = 0; i < totalBullets; i++) {
-               const off = i - (totalBullets - 1) / 2;
-
-               const b = getBullet();
-               b.x  = player.x + off * sepOffsetX;
-               b.y  = player.y - 2 * PIX;
-               b.vx = off * sepAngle * 3;
-               b.vy = wdef.vy;
-               b.c  = wdef.color;
-               b.dmg = dmg;
-               b.pierceLeft = totalPierce;
-               b.kind = wdef.kind;
-               b.shape = wdef.shape || 'rect';
-               b.splash = wdef.splash || 0;
-               b.splashDmg = wdef.splashDmg || 0;
-               b.life = wdef.life || 0;
-               b.alive = true;
-               entities.bullets.push(b);
-             }
-
-             player.fireTimer = wdef.fireRate * player.fireRateMult;
-             player.shootFlash = 60;
-             beep('shot', wdef.sound.hz, wdef.sound.dur, wdef.sound.type);
-             const muzzleY = player.y - 5*PIX;
-             switch (wdef.shape){
-               case 'pellet':
-                 spawnParticles(player.x, muzzleY, 6, {color:wdef.color, speed:90, life:100, size:1.8, spread:1.1, dir:-Math.PI/2});
-                 break;
-               case 'rocket':
-                 spawnParticles(player.x, muzzleY, 5, {color:wdef.color, speed:50, life:180, size:3, spread:1.0, dir:-Math.PI/2});
-                 break;
-               case 'flame':
-                 spawnParticles(player.x, muzzleY, 3, {color:wdef.color, speed:40, life:90, size:2.5, spread:0.6, dir:-Math.PI/2});
-                 break;
-               case 'streak':
-                 spawnParticles(player.x, muzzleY, 1, {color:wdef.color, speed:30, life:90, size:1.4, spread:0.3, dir:-Math.PI/2});
-                 break;
-               default:
-                 spawnParticles(player.x, muzzleY, 2, {color:wdef.color, speed:60, life:120, size:2, spread:0.8, dir:-Math.PI/2});
-             }
+             fireWeaponShot(player.x, player.y, {});
+             player.fireTimer = WEAPONS[player.weapon].fireRate * player.fireRateMult;
            }
            if (player.shootFlash > 0) player.shootFlash -= dt;
-         
-           // === DRONES ===
-           let removed = false;
-           for (let i = entities.companions.length - 1; i >= 0; i--) {
-             const d = entities.companions[i];
-             if (gameTime - d.created > d.life) { entities.companions.splice(i,1); removed = true; }
-           }
-           if (removed) normalizeDroneSlots();
-         
+
+           // === SOLDIERS (fight with the player's current weapon + perks) ===
            for(let i=0;i<entities.companions.length;i++){
              const d=entities.companions[i];
              const s=8*PIX;
-             const offset = d.slot===0 ? {dx:-s,dy:-PIX-10}
-                         : d.slot===1 ? {dx:+s,dy:-PIX-10}
-                         :              {dx:0,  dy:-18};
-             const bob=Math.sin(performance.now()/200+d.slot)*2; // visual only
-             d.x=player.x+offset.dx; d.y=player.y-5*PIX+offset.dy+bob;
-             d.timer-=dt;
-             if(d.timer<=0){
-               const b=getBullet(); b.x=d.x; b.y=d.y-2*PIX; b.vx=0; b.vy=-7; b.c='#7efc6c'; b.alive=true;
-               b.dmg=1; b.pierceLeft=0; b.kind='bullet'; b.shape='rect'; b.splash=0; b.splashDmg=0; b.life=0;
-               entities.bullets.push(b); d.timer=d.fireRate;
+             const side = d.slot%2===0 ? -1 : 1;
+             const rank = Math.floor(d.slot/2)+1;
+             d.x = player.x + side*s*rank;
+             d.y = player.y - 5*PIX + Math.sin(performance.now()/200+d.slot)*2;
+             d.fireTimer -= dt;
+             if (d.fireTimer <= 0){
+               fireWeaponShot(d.x, d.y, {silent:true});
+               d.fireTimer = WEAPONS[player.weapon].fireRate * player.fireRateMult;
              }
-             if (Math.random() < dt*0.012) spawnParticles(d.x, d.y+3*PIX, 1, {color:'#7efc6c', speed:10, life:220, size:1.5, spread:0.6, dir:Math.PI/2});
            }
+
          
            // bullets
            const f=fieldRect();
            for(let i=entities.bullets.length-1;i>=0;i--){
              const b=entities.bullets[i]; if(!b.alive){ entities.bullets.splice(i,1); continue; }
+             if (b.homing && b.vy < 0){
+               let nearest=null, nd=Infinity;
+               for (let k=0;k<entities.enemies.length;k++){
+                 const en=entities.enemies[k]; if(en.dieT>0) continue;
+                 const ddx=en.x+4*PIX-b.x, ddy=en.y+5*PIX-b.y;
+                 const dd=ddx*ddx+ddy*ddy;
+                 if (dd<nd){ nd=dd; nearest=en; }
+               }
+               if (nearest){
+                 const ddx=nearest.x+4*PIX-b.x, ddy=nearest.y+5*PIX-b.y;
+                 const dlen=Math.hypot(ddx,ddy)||1;
+                 b.vx += (ddx/dlen)*0.6;
+                 b.vy += (ddy/dlen)*0.6;
+               }
+             }
              b.x+=b.vx; b.y+=b.vy;
              if(b.life){ b.life-=dt; if(b.life<=0){ b.alive=false; entities.bullets.splice(i,1); freeBullet(b); continue; } }
              if(b.y<f.y-20 || b.y>f.y+f.h+20){ b.alive=false; entities.bullets.splice(i,1); freeBullet(b); continue; }
-         
-             // perk drops
-             for(let pi=entities.perks.length-1;pi>=0;pi--){
-               const p=entities.perks[pi], w=8*PIX,h=8*PIX;
-               if(Math.abs(b.x-(p.x+w/2))<w/2 && Math.abs(b.y-(p.y+h/2))<h/2){
-                 p.shotsLeft--; b.alive=false; entities.bullets.splice(i,1); freeBullet(b); beep('hit',560,45);
-                 if(p.shotsLeft<=0){
-                   if (p.kind==='weapon') equipWeapon(p.key); else addPerkStack(p.key);
-                   entities.perks.splice(pi,1);
-                 }
-                 break;
-               }
-             }
-             if(!b.alive) continue;
-         
-             // barriers (wood crates)
+
+             // roadblock (single-file conveyor — only the active one can be hit)
              for(let bi=entities.barriers.length-1;bi>=0;bi--){
                const R=entities.barriers[bi], w=8*PIX,h=8*PIX;
+               if(R.state!=='active') continue;
                if(Math.abs(b.x-(R.x+w/2))<w/2 && Math.abs(b.y-(R.y+h/2))<h/2){
                  R.hp--; R.hit=160; b.alive=false; entities.bullets.splice(i,1); freeBullet(b); beep('hit',560,45);
                  if(R.hp<=0){
-                   director.pendingDrops.push({x:R.x, y:R.y, key:R.key, kind:R.kind}); // queued drop
+                   grantRoadblockReward(R);
                    entities.barriers.splice(bi,1);
                  }
                  break;
                }
              }
              if(!b.alive) continue;
-         
+
              // enemies
              for(let ei=entities.enemies.length-1;ei>=0;ei--){
                const e=entities.enemies[ei], w=8*PIX,h=10*PIX;
@@ -1692,30 +1615,32 @@
                  } else { requestHUD(); }
                }
              }
-           }
-         
-           // crates (descend & wobble)
-           for(let i=entities.barriers.length-1;i>=0;i--){
-             const R=entities.barriers[i];
-             R.y += (90 + wave*3) * dt/1000; R.t += dt/400;
-             if(R.hit>0) R.hit-=dt;
-             if(R.y > f.y + f.h + 40) entities.barriers.splice(i,1);
-           }
-         
-           // perk drops (descend, or steer toward player when Magnet is active)
-           for(let i=entities.perks.length-1;i>=0;i--){
-             const p=entities.perks[i];
-             const dxm = player.x - p.x, dym = player.y - p.y;
-             const dm = Math.hypot(dxm, dym);
-             if (player.magnetActive && dm > 1 && dm < 260){
-               const pull = 260;
-               p.x += (dxm/dm) * pull * dt/1000;
-               p.y += (dym/dm) * pull * dt/1000;
-             } else {
-               p.y += (110 + wave*2) * dt/1000;
-               p.t += dt/400; p.x += Math.sin(p.t)*0.5;
+
+             // soldier contact — an enemy reaching a soldier kills it (once per enemy)
+             if (!e.soldierKillUsed){
+               for(let si=entities.companions.length-1; si>=0; si--){
+                 const sd=entities.companions[si];
+                 if(rectsOverlap(sd.x-4*PIX, sd.y-5*PIX, 8*PIX, 10*PIX, e.x, e.y, 8*PIX, 10*PIX)){
+                   spawnParticles(sd.x, sd.y, 8, {color:PALETTE.blood, speed:90, life:280, size:2, gravity:100});
+                   beep('hurt',180,100,'sawtooth');
+                   entities.companions.splice(si,1);
+                   normalizeSoldierSlots();
+                   e.soldierKillUsed = true;
+                   break;
+                 }
+               }
              }
-             if(p.y > f.y + f.h + 40) entities.perks.splice(i,1);
+           }
+         
+           // roadblock (single-file conveyor — only moves while entering, then parks until broken)
+           for(let i=0;i<entities.barriers.length;i++){
+             const R=entities.barriers[i];
+             R.t += dt/400;
+             if(R.hit>0) R.hit-=dt;
+             if(R.state==='entering'){
+               R.y += ROADBLOCK_ENTER_SPEED * dt/1000;
+               if(R.y >= R.restY){ R.y = R.restY; R.state = 'active'; }
+             }
            }
 
            // particles (fade + drift)
@@ -1759,10 +1684,8 @@
            }
 
            // wave advance
-           if(!gameOver &&
-              entities.enemies.length===0 && entities.barriers.length===0 && entities.perks.length===0 &&
-              director.qEnemies===0 && director.qBarriers===0 && director.pendingDrops.length===0){
-             director.tEnemy = 300; director.tBarrier = 400;
+           if(!gameOver && entities.enemies.length===0 && director.qEnemies===0){
+             director.tEnemy = 300;
              spawnWave(wave+1);
            }
          
@@ -1795,11 +1718,10 @@
 
            if(roadBuf) ctx.drawImage(roadBuf, 0, 0, roadBuf.width, roadBuf.height, 0, 0, W, H);
 
-           // drones
-           const df = TEX.droneFrames[((performance.now()/120)|0)%2];
+           // soldiers
            for(let i=0;i<entities.companions.length;i++){
              const d = entities.companions[i];
-             ctx.globalAlpha=.9; ctx.drawImage(df, d.x-3.5*PIX, d.y-2.5*PIX); ctx.globalAlpha=1;
+             ctx.drawImage(TEX.soldier, d.x-4*PIX, d.y-5*PIX);
            }
          
            // player
@@ -1892,7 +1814,7 @@
              if(e.hitFlash>0) drawFlashOverlay(e.x, e.y, tex.width, tex.height, Math.min(0.35, e.hitFlash/120*0.35));
            }
          
-           // crates (barriers) — wood crate for perks, steel ammo box for weapons
+           // roadblock (single-file conveyor) — wood crate for perks, steel ammo box for weapons
            for(let i=0;i<entities.barriers.length;i++){
              const R=entities.barriers[i];
              const isWeaponCrate = R.kind === 'weapon';
@@ -1925,78 +1847,13 @@
              ctx.fillRect( 4*PIX-n-2, 4*PIX-n-2,2,2);
              ctx.fillStyle='#000'; ctx.fillRect(-4*PIX, 4*PIX+2, w, 3);
              ctx.fillStyle='#ffd66b'; ctx.fillRect(-4*PIX, 4*PIX+2, w*(R.hp/R.maxHp), 3);
-             ctx.restore();
-           }
-         
-           // perk drops (centered badge + icon)
-           for (let i = 0; i < entities.perks.length; i++) {
-             const p = entities.perks[i];
-             ctx.save();
-             const s = 1 + 0.06 * Math.sin(p.t * 1.2);
-             ctx.translate(p.x + 4 * PIX, p.y + 4 * PIX);
-             ctx.scale(s, s);
-         
-             const bgMap = {
-               heal:  'rgba(255,93,93,0.18)',
-               bullet:'rgba(170,183,204,0.18)',
-               rapid: 'rgba(255,214,107,0.18)',
-               spread:'rgba(126,252,108,0.18)',
-               coin:  'rgba(255,235,138,0.22)',
-               drone: 'rgba(57,240,255,0.18)',
-               pierce:'rgba(170,183,204,0.18)',
-               damage:'rgba(255,93,93,0.20)',
-               shield:'rgba(142,203,255,0.20)',
-               magnet:'rgba(180,107,255,0.18)',
-               vamp:  'rgba(180,107,255,0.18)',
-               multi: 'rgba(255,235,138,0.22)',
-               freeze:'rgba(142,203,255,0.22)',
-               smg:'rgba(207,231,255,0.18)', shotgun:'rgba(255,214,107,0.18)',
-               sniper:'rgba(255,93,93,0.18)', rocket:'rgba(255,140,59,0.20)',
-               flamethrower:'rgba(255,140,59,0.22)',
-             };
-             const strokeMap = {
-               heal:  '#ff5d5d',
-               bullet:'#aab7cc',
-               rapid: '#ffd66b',
-               spread:'#7efc6c',
-               coin:  '#ffeb8a',
-               drone: '#39f0ff',
-               pierce:'#aab7cc',
-               damage:'#ff5d5d',
-               shield:'#8ecbff',
-               magnet:'#b46bff',
-               vamp:  '#b46bff',
-               multi: '#ffeb8a',
-               freeze:'#8ecbff',
-               smg:'#cfe7ff', shotgun:'#ffd66b',
-               sniper:'#ff5d5d', rocket:'#ff8c3b',
-               flamethrower:'#ff8c3b',
-             };
-
-             const def = p.kind==='weapon' ? WEAPONS[p.key] : PERKS[p.key];
-             const iconCanvas = TEX.icon[def.icon];
-             const bw = Math.max(9 * PIX, iconCanvas.width + 2 * PIX);
-             const bh = Math.max(9 * PIX, iconCanvas.height + 2 * PIX);
-             const rx = 6;
-         
-             ctx.fillStyle = bgMap[p.key] || 'rgba(255,255,255,0.10)';
-             roundRect(ctx, -bw/2, -bh/2, bw, bh, rx, true, false);
-             ctx.lineWidth = 2;
-             ctx.strokeStyle = strokeMap[p.key] || 'rgba(255,255,255,0.25)';
-             roundRect(ctx, -bw/2 + 0.5, -bh/2 + 0.5, bw - 1, bh - 1, rx, false, true); // crisp outline
-         
-             // Icon perfectly centered
-             ctx.drawImage(iconCanvas, -iconCanvas.width/2, -iconCanvas.height/2);
-         
-             // shots left
-             ctx.fillStyle = '#000';
-             ctx.fillRect(-PIX * 1.6, bh/2 - 2.6 * PIX, 3.2 * PIX, 2 * PIX);
-             ctx.fillStyle = '#fff';
-             ctx.font = `${Math.floor(PIX*1.7)}px monospace`;
-             ctx.textAlign = 'center';
-             ctx.textBaseline = 'middle';
-             ctx.fillText(p.shotsLeft, 0, bh/2 - 1.6 * PIX);
-         
+             if (R.state==='active'){
+               const def = R.kind==='weapon' ? WEAPONS[R.key] : PERKS[R.key];
+               const iconCanvas = TEX.icon[def.icon];
+               const ix = -iconCanvas.width/2, iy = -4*PIX-iconCanvas.height-6;
+               ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(ix-2, iy-2, iconCanvas.width+4, iconCanvas.height+4);
+               ctx.drawImage(iconCanvas, ix, iy);
+             }
              ctx.restore();
            }
 
@@ -2014,7 +1871,7 @@
            }
            ctx.globalAlpha = 1;
 
-           // particles (muzzle flash, sparks, blood, explosions, drone glow) — glow on bright FX
+           // particles (muzzle flash, sparks, blood, explosions, ally glow) — glow on bright FX
            for(let i=0;i<entities.particles.length;i++){
              const pa=entities.particles[i];
              ctx.globalAlpha = Math.max(0, pa.life/pa.maxLife);

@@ -304,167 +304,279 @@
            wd1:'#8b5e3c', wd2:'#a06e46', wd3:'#c18a5c',
            gr:'#94a3b8', gr2:'#cbd5e1',
            bone:'#e7e1cc', bone2:'#d8d2bd', blood:'#b04343',
-           p:'#b46bff', ib:'#8ecbff', o:'#ff8c3b', b:'#3b82f6'
+           p:'#b46bff', ib:'#8ecbff', o:'#ff8c3b', b:'#3b82f6',
+           /* shading set for higher-detail character/enemy sprites */
+           ol3:'#8fae66', ol4:'#2b3520',
+           st2:'#e7eef7', st3:'#566173',
+           sk2:'#caa080',
+           gn2:'#5e7a52', gn3:'#1c2818',
+           bone3:'#9c916f',
+           bile:'#9fcf3b',
+           eye:'#ff2b2b'
          };
-         
-         /* Player */
-         const SPRITE_SOLDIER=[
-          [ 0,'ol','ol','ol2','ol2','ol','ol',0 ],
-          [ 0,'ol','ol2','ol2','ol2','ol2','ol',0 ],
-          [ 0,'dk','sk','sk','sk','sk','dk',0 ],
-          [ 0,'st','dk','dk','dk','dk','st',0 ],
-          [ 0,'ol','ol2','ol','ol','ol2','ol',0 ],
-          [ 0,'ol','st','ol','ol','st','ol',0 ],
-          [ 0,'dk','dk','dk','dk','dk','dk',0 ],
-          [ 0,'ol','st','ol2','ol2','st','ol',0 ],
-          [ 0,'dk',0,'dk','dk',0,'dk',0 ],
-          [ 0,'dk',0,0,0,0,'dk',0 ],
-         ];
-         
-         /* Undead */
-         const Z_SHAMBLER=[
-          [0,0,'gn','gn','gn','gn',0,0],
-          [0,'k',0,'gn','gn',0,'k',0],
-          [0,'gn','gn','gn','gn','gn','gn',0],
-          [0,'gg','gg','bone2','bone2','gg','gg',0],
-          [0,'gg','bone','bone','bone','gg','gg',0],
-          [0,'gg','gg','bone2','bone2','gg','gg',0],
-          [0,'gg',0,'gg','gg',0,'gg',0],
-          [0,'gn','gn','gg','gg','gn','gn',0],
-          [0,'gn',0,0,0,0,'gn',0],
-          [0,0,0,0,0,0,0,0],
-         ];
-         const Z_BRUISER=[
-          [0,0,'gn','gn','gn','gn',0,0],
-          [0,0,'k','gn','gn','k',0,0],
-          [0,'gn','gn','gn','gn','gn','gn',0],
-          [0,'gg','gg','gg','gg','gg','gg',0],
-          [0,'gg','gg','gg','blood','gg','gg',0],
-          [0,'gg','gg','blood','blood','gg','gg',0],
-          [0,'gg',0,'bone2','bone2',0,'gg',0],
-          [0,'gn','gg','gg','gg','gg','gn',0],
-          [0,'gn',0,0,0,0,'gn',0],
-          [0,0,0,0,0,0,0,0],
-         ];
-         const SKELETON=[
-          [0,0,'bone','bone','bone','bone',0,0],
-          [0,'k',0,'bone', 'bone',0,'k',0],
-          [0,'bone','bone','bone','bone','bone','bone',0],
-          [0,'bone2','bone','bone','bone','bone','bone2',0],
-          [0,'bone2','k','bone','bone','k','bone2',0],
-          [0,'bone2','bone','bone','bone','bone','bone2',0],
-          [0,'bone',0,'bone','bone',0,'bone',0],
-          [0,'bone2','bone2','bone2','bone2','bone2','bone2',0],
-          [0,'bone',0,0,0,0,'bone',0],
-          [0,0,0,0,0,0,0,0],
-         ];
 
-         /* Walk-cycle frame B for the three original zombies (feet shift inward) */
-         const Z_SHAMBLER_B=[
-          [0,0,'gn','gn','gn','gn',0,0],
-          [0,'k',0,'gn','gn',0,'k',0],
-          [0,'gn','gn','gn','gn','gn','gn',0],
-          [0,'gg','gg','bone2','bone2','gg','gg',0],
-          [0,'gg','bone','bone','bone','gg','gg',0],
-          [0,'gg','gg','bone2','bone2','gg','gg',0],
-          [0,'gg',0,'gg','gg',0,'gg',0],
-          [0,'gn','gn','gg','gg','gn','gn',0],
-          [0,0,'gn',0,0,'gn',0,0],
-          [0,0,0,0,0,0,0,0],
-         ];
-         const Z_BRUISER_B=[
-          [0,0,'gn','gn','gn','gn',0,0],
-          [0,0,'k','gn','gn','k',0,0],
-          [0,'gn','gn','gn','gn','gn','gn',0],
-          [0,'gg','gg','gg','gg','gg','gg',0],
-          [0,'gg','gg','gg','blood','gg','gg',0],
-          [0,'gg','gg','blood','blood','gg','gg',0],
-          [0,'gg',0,'bone2','bone2',0,'gg',0],
-          [0,'gn','gg','gg','gg','gg','gn',0],
-          [0,0,'gn',0,0,'gn',0,0],
-          [0,0,0,0,0,0,0,0],
-         ];
-         const SKELETON_B=[
-          [0,0,'bone','bone','bone','bone',0,0],
-          [0,'k',0,'bone', 'bone',0,'k',0],
-          [0,'bone','bone','bone','bone','bone','bone',0],
-          [0,'bone2','bone','bone','bone','bone','bone2',0],
-          [0,'bone2','k','bone','bone','k','bone2',0],
-          [0,'bone2','bone','bone','bone','bone','bone2',0],
-          [0,'bone',0,'bone','bone',0,'bone',0],
-          [0,'bone2','bone2','bone2','bone2','bone2','bone2',0],
-          [0,0,'bone',0,0,'bone',0,0],
-          [0,0,0,0,0,0,0,0],
-         ];
+         /* ====== Pixel-grid sprite builder helpers ======
+            Sprites are authored at higher resolution (24x30 for characters,
+            14x10 for the drone) by painting block/pixel commands into a
+            blank grid then mirroring the left half — far less error-prone
+            than hand-typing hundreds of literal cells, and keeps both
+            walk-cycle frames of a type in sync since they share one builder. */
+         function blankGrid(cols, rows){
+           return Array.from({length: rows}, () => new Array(cols).fill(0));
+         }
+         function fillBlock(g, x0, y0, w, h, c){
+           for (let y=y0; y<y0+h; y++){
+             const row = g[y]; if(!row) continue;
+             for (let x=x0; x<x0+w; x++){ if (x>=0 && x<row.length) row[x]=c; }
+           }
+         }
+         function setPx(g, x, y, c){ const row=g[y]; if(row && x>=0 && x<row.length) row[x]=c; }
+         function mirrorRight(g){
+           const cols=g[0].length;
+           for (const row of g){ for (let x=0; x<cols>>1; x++) row[cols-1-x]=row[x]; }
+           return g;
+         }
+         function addOutline(g){
+           const rows=g.length, orig=g.map(row=>row.slice());
+           for (let y=0;y<rows;y++){
+             const row=g[y], oRow=orig[y], cols=row.length;
+             for (let x=0;x<cols;x++){
+               if (oRow[x]) continue;
+               const up=orig[y-1]&&orig[y-1][x], down=orig[y+1]&&orig[y+1][x];
+               const left=oRow[x-1], right=oRow[x+1];
+               if (up||down||left||right) row[x]='k';
+             }
+           }
+           return g;
+         }
 
-         /* Runner — lean, fast zombie (frames A/B = running stride) */
-         const RUNNER_A=[
-          [0,0,0,'gn','gn',0,0,0],
-          [0,0,'k',0,0,'k',0,0],
-          [0,0,'gn','gn','gn','gn',0,0],
-          [0,0,'gg','bone2','bone2','gg',0,0],
-          [0,0,'gg','bone','bone','gg',0,0],
-          [0,0,'gg','bone2','bone2','gg',0,0],
-          [0,'gg','gg',0,0,'gg',0,0],
-          [0,'gn',0,0,0,0,'gn',0],
-          [0,0,0,0,0,0,0,0],
-          [0,0,0,0,0,0,0,0],
-         ];
-         const RUNNER_B=[
-          [0,0,0,'gn','gn',0,0,0],
-          [0,0,'k',0,0,'k',0,0],
-          [0,0,'gn','gn','gn','gn',0,0],
-          [0,0,'gg','bone2','bone2','gg',0,0],
-          [0,0,'gg','bone','bone','gg',0,0],
-          [0,0,'gg','bone2','bone2','gg',0,0],
-          [0,0,'gg','gg','gg',0,0,0],
-          [0,0,'gn',0,0,'gn',0,0],
-          [0,0,0,0,0,0,0,0],
-          [0,0,0,0,0,0,0,0],
-         ];
+         /* Player — armored soldier, top-down/back view (helmet, visor, chest plate, legs) */
+         const SPRITE_SOLDIER = (()=>{
+           const g = blankGrid(24,30);
+           fillBlock(g,10,0,2,1,'ol4');
+           fillBlock(g,8,1,4,1,'ol');
+           fillBlock(g,7,2,5,1,'ol');
+           fillBlock(g,7,3,5,1,'ol2');
+           fillBlock(g,7,4,5,1,'st3');
+           fillBlock(g,9,4,3,1,'c');
+           fillBlock(g,8,5,4,1,'sk');
+           fillBlock(g,8,6,4,1,'dk');
+           fillBlock(g,6,7,6,1,'ol2');
+           fillBlock(g,5,8,7,1,'ol');
+           fillBlock(g,5,8,2,1,'ol3');
+           fillBlock(g,5,9,5,4,'ol2');
+           fillBlock(g,10,9,2,1,'st2');
+           fillBlock(g,10,10,2,1,'st');
+           fillBlock(g,10,11,2,1,'st');
+           fillBlock(g,10,12,2,1,'st3');
+           fillBlock(g,5,13,7,1,'dk');
+           fillBlock(g,3,14,2,3,'ol');
+           fillBlock(g,6,14,6,3,'ol2');
+           fillBlock(g,3,17,2,1,'sk');
+           fillBlock(g,6,17,6,3,'ol2');
+           fillBlock(g,7,20,4,6,'ol');
+           fillBlock(g,7,22,4,1,'ol3');
+           fillBlock(g,7,24,4,1,'ol4');
+           fillBlock(g,6,26,5,4,'dk');
+           fillBlock(g,6,29,5,1,'st3');
+           mirrorRight(g);
+           setPx(g,9,4,'st2');
+           setPx(g,17,7,'st');
+           setPx(g,17,6,'st2');
+           return addOutline(g);
+         })();
 
-         /* Bloater — slow, tanky, bursts on death (frames A/B = pulsing bulge) */
-         const BLOATER_A=[
-          [0,'gn','gn','gn','gn','gn','gn',0],
-          ['k','gn','gn','gn','gn','gn','gn','k'],
-          ['gn','gn','blood','gn','gn','blood','gn','gn'],
-          ['gg','gg','gg','gg','gg','gg','gg','gg'],
-          ['gg','blood','gg','blood','blood','gg','blood','gg'],
-          ['gg','gg','blood','blood','blood','blood','gg','gg'],
-          ['gg','gg','gg','blood','blood','gg','gg','gg'],
-          [0,'gn','gn','gg','gg','gn','gn',0],
-          [0,'gn',0,0,0,0,'gn',0],
-          [0,0,0,0,0,0,0,0],
-         ];
-         const BLOATER_B=[
-          [0,'gn','gn','gn','gn','gn','gn',0],
-          ['k','gn','gn','gn','gn','gn','gn','k'],
-          ['gn','gn','blood','gn','gn','blood','gn','gn'],
-          ['gg','gg','gg','gg','gg','gg','gg','gg'],
-          ['gg','blood','blood','gg','gg','blood','blood','gg'],
-          ['gg','gg','blood','blood','blood','blood','gg','gg'],
-          ['gg','gg','blood','gg','gg','blood','gg','gg'],
-          [0,'gg','gn','gn','gn','gn','gg',0],
-          [0,0,'gn',0,0,'gn',0,0],
-          [0,0,0,0,0,0,0,0],
-         ];
+         /* Undead — Shambler: basic shuffling corpse, hollow glowing eyes, chest wound */
+         function buildShambler(frame){
+           const g = blankGrid(24,30);
+           fillBlock(g,10,0,2,1,'gn3');
+           fillBlock(g,8,1,4,1,'gn');
+           fillBlock(g,7,2,5,1,'gn2');
+           fillBlock(g,7,3,5,1,'gn');
+           setPx(g,9,3,'eye');
+           fillBlock(g,8,4,4,1,'gn');
+           setPx(g,11,4,'gn3');
+           fillBlock(g,8,5,4,1,'gn2');
+           fillBlock(g,10,5,2,1,'k');
+           fillBlock(g,8,6,4,1,'gn3');
+           fillBlock(g,7,7,5,1,'gg');
+           fillBlock(g,6,8,6,1,'gg');
+           fillBlock(g,6,9,6,4,'gg');
+           fillBlock(g,7,10,4,1,'g');
+           fillBlock(g,10,11,2,2,'blood');
+           fillBlock(g,6,13,6,1,'gn3');
+           fillBlock(g,6,14,6,5,'gg');
+           fillBlock(g,4,14,2,4,'gg');
+           fillBlock(g,4,18,2,2,'gn');
+           fillBlock(g,6,19,6,1,'gn3');
+           mirrorRight(g);
+           setPx(g,8,13,0);
+           setPx(g,16,13,0);
 
-         /* Drones (two frames) */
-         const DRONE_FRAME_A=[
-          [0,'gr2',0, 0, 0,'gr2',0],
-          ['gr2','gr','gr',0,'gr','gr','gr2'],
-          [0,'gr',0,'c',0,'gr',0],
-          ['gr2','gr','gr',0,'gr','gr','gr2'],
-          [0,'gr2',0, 0, 0,'gr2',0],
-         ];
-         const DRONE_FRAME_B=[
-          [0,0,'gr2',0,'gr2',0,0],
-          [0,'gr','gr',0,'gr','gr',0],
-          ['gr2','gr',0,'c',0,'gr','gr2'],
-          [0,'gr','gr',0,'gr','gr',0],
-          [0,0,'gr2',0,'gr2',0,0],
-         ];
-         
+           const lOff = frame===1 ? 0 : -1, rOff = frame===1 ? 0 : 1;
+           fillBlock(g,7+lOff,20,4,6,'gg');
+           fillBlock(g,13+rOff,20,4,6,'gg');
+           fillBlock(g,7+lOff,22,4,1,'bone2');
+           fillBlock(g,13+rOff,22,4,1,'bone2');
+           fillBlock(g,6+lOff,26,5,4,'gn3');
+           fillBlock(g,13+rOff,26,5,4,'gn3');
+           fillBlock(g,6+lOff,29,5,1,'bone2');
+           fillBlock(g,13+rOff,29,5,1,'bone2');
+           return addOutline(g);
+         }
+         const Z_SHAMBLER   = buildShambler(0);
+         const Z_SHAMBLER_B = buildShambler(1);
+
+         /* Undead — Bruiser: bulkier, heavier blood-soaked chest, ham-fist arms */
+         function buildBruiser(frame){
+           const g = blankGrid(24,30);
+           fillBlock(g,9,0,3,1,'gn3');
+           fillBlock(g,8,1,4,1,'gn');
+           fillBlock(g,7,2,5,1,'gn');
+           fillBlock(g,7,3,5,1,'gn2');
+           setPx(g,8,3,'eye');
+           fillBlock(g,7,4,5,1,'gn');
+           fillBlock(g,7,5,5,1,'gn2');
+           fillBlock(g,9,5,3,1,'k');
+           fillBlock(g,7,6,5,1,'gn3');
+           fillBlock(g,5,7,7,1,'gg');
+           fillBlock(g,4,8,8,1,'gg');
+           fillBlock(g,3,9,9,5,'gg');
+           fillBlock(g,9,10,3,1,'gn3');
+           fillBlock(g,8,11,4,3,'blood');
+           fillBlock(g,3,14,2,5,'gg');
+           fillBlock(g,4,19,2,2,'gn');
+           fillBlock(g,5,14,6,5,'gg');
+           fillBlock(g,6,19,6,1,'gn3');
+           mirrorRight(g);
+
+           const lOff = frame===1 ? 0 : -1, rOff = frame===1 ? 0 : 1;
+           fillBlock(g,7+lOff,20,5,5,'gg');
+           fillBlock(g,12+rOff,20,5,5,'gg');
+           fillBlock(g,7+lOff,22,5,1,'gn3');
+           fillBlock(g,12+rOff,22,5,1,'gn3');
+           fillBlock(g,6+lOff,25,6,4,'gn3');
+           fillBlock(g,12+rOff,25,6,4,'gn3');
+           fillBlock(g,6+lOff,28,6,1,'bone2');
+           fillBlock(g,12+rOff,28,6,1,'bone2');
+           return addOutline(g);
+         }
+         const Z_BRUISER   = buildBruiser(0);
+         const Z_BRUISER_B = buildBruiser(1);
+
+         /* Undead — Skeleton: bare bones, exposed rib cage and spine, glowing sockets */
+         function buildSkeleton(frame){
+           const g = blankGrid(24,30);
+           fillBlock(g,9,0,3,1,'bone3');
+           fillBlock(g,8,1,4,1,'bone');
+           fillBlock(g,7,2,5,1,'bone');
+           fillBlock(g,7,3,5,1,'bone2');
+           fillBlock(g,8,4,2,1,'k');
+           setPx(g,8,4,'eye');
+           fillBlock(g,8,5,4,1,'bone2');
+           fillBlock(g,9,5,2,1,'k');
+           fillBlock(g,7,6,5,1,'bone3');
+           fillBlock(g,9,6,2,1,'bone');
+           fillBlock(g,7,7,5,1,'bone2');
+           fillBlock(g,7,8,5,1,'bone');
+           fillBlock(g,7,9,5,7,'dk');
+           fillBlock(g,7,10,5,1,'bone');
+           fillBlock(g,7,12,5,1,'bone');
+           fillBlock(g,7,14,5,1,'bone');
+           fillBlock(g,10,9,2,7,'bone3');
+           fillBlock(g,5,9,2,7,'bone2');
+           fillBlock(g,5,16,2,2,'bone');
+           fillBlock(g,7,16,5,3,'bone3');
+           mirrorRight(g);
+
+           const lOff = frame===1 ? 0 : -1, rOff = frame===1 ? 0 : 1;
+           fillBlock(g,9+lOff,20,3,8,'bone2');
+           fillBlock(g,12+rOff,20,3,8,'bone2');
+           fillBlock(g,9+lOff,23,3,1,'bone3');
+           fillBlock(g,12+rOff,23,3,1,'bone3');
+           fillBlock(g,8+lOff,28,4,2,'bone3');
+           fillBlock(g,12+rOff,28,4,2,'bone3');
+           return addOutline(g);
+         }
+         const SKELETON   = buildSkeleton(0);
+         const SKELETON_B = buildSkeleton(1);
+
+         /* Runner — lean sprinter, hunched forward, long stride */
+         function buildRunner(frame){
+           const g = blankGrid(24,30);
+           fillBlock(g,10,0,2,1,'gn3');
+           fillBlock(g,9,1,3,1,'gn');
+           fillBlock(g,9,2,3,1,'gn2');
+           setPx(g,9,2,'eye');
+           fillBlock(g,9,3,3,1,'gn');
+           fillBlock(g,9,4,3,1,'k');
+           fillBlock(g,9,5,3,1,'gn3');
+           fillBlock(g,8,6,6,1,'gg');
+           fillBlock(g,8,7,6,7,'gg');
+           fillBlock(g,9,9,4,1,'o');
+           fillBlock(g,9,11,4,2,'blood');
+           fillBlock(g,6,7,2,6,'gg');
+           fillBlock(g,6,13,2,2,'gn');
+           fillBlock(g,8,14,6,2,'gn3');
+           mirrorRight(g);
+
+           const lOff = frame===1 ? 0 : -2, rOff = frame===1 ? 0 : 2;
+           fillBlock(g,9+lOff,16,3,11,'gg');
+           fillBlock(g,12+rOff,16,3,11,'gg');
+           fillBlock(g,9+lOff,20,3,1,'gn3');
+           fillBlock(g,12+rOff,20,3,1,'gn3');
+           fillBlock(g,8+lOff,27,4,3,'gn3');
+           fillBlock(g,12+rOff,27,4,3,'gn3');
+           return addOutline(g);
+         }
+         const RUNNER_A = buildRunner(0);
+         const RUNNER_B = buildRunner(1);
+
+         /* Bloater — huge round body, glowing pustules that shift between frames */
+         function buildBloater(frame){
+           const g = blankGrid(24,30);
+           fillBlock(g,10,0,4,2,'gn3');
+           setPx(g,9,1,'eye'); setPx(g,14,1,'eye');
+           const bulge=[[2,4],[3,6],[4,8],[5,9],[6,10],[7,10],[8,11],[9,11],[10,11],[11,11],[12,11],[13,10],[14,10],[15,9],[16,8],[17,7],[18,6],[19,5]];
+           for (const [y,hw] of bulge) fillBlock(g,12-hw,y,hw,1,'gg');
+           if (frame===0){
+             fillBlock(g,5,8,2,2,'blood');
+             fillBlock(g,9,11,2,2,'bile');
+             fillBlock(g,5,14,2,2,'blood');
+           } else {
+             fillBlock(g,6,9,2,2,'bile');
+             fillBlock(g,4,12,2,2,'blood');
+             fillBlock(g,9,15,2,2,'blood');
+           }
+           mirrorRight(g);
+           fillBlock(g,8,22,3,3,'gn3');
+           fillBlock(g,13,22,3,3,'gn3');
+           fillBlock(g,8,25,4,2,'k');
+           fillBlock(g,12,25,4,2,'k');
+           return addOutline(g);
+         }
+         const BLOATER_A = buildBloater(0);
+         const BLOATER_B = buildBloater(1);
+
+         /* Drones (two frames, rotor-blur shimmer) */
+         function buildDrone(frame){
+           const g = blankGrid(14,10);
+           fillBlock(g,5,0,2,1,'gr2');
+           fillBlock(g,4,1,3,1,'gr');
+           fillBlock(g,3,2,4,1,'gr');
+           fillBlock(g,2,3,5,1,'gr');
+           fillBlock(g,3,4,4,2,'gr');
+           setPx(g,5,4,'c'); setPx(g,5,5,'c');
+           fillBlock(g,4,6,3,1,'gr2');
+           fillBlock(g,3,7,4,1,'gr');
+           mirrorRight(g);
+           if (frame===0){ setPx(g,1,3,'st2'); setPx(g,12,3,'gr2'); }
+           else { setPx(g,1,3,'gr2'); setPx(g,12,3,'st2'); }
+           return g;
+         }
+         const DRONE_FRAME_A = buildDrone(0);
+         const DRONE_FRAME_B = buildDrone(1);
+
          /* ====== PERK ICONS (updated, centered, readable) ====== */
          const ICONS = {
          /* HEAL — 7x7 pixel heart (balanced and readable) */
@@ -701,19 +813,19 @@
          }
          
          const TEX = {
-           soldier: renderGridToCanvas(SPRITE_SOLDIER),
-           z_shambler: renderGridToCanvas(Z_SHAMBLER),
-           z_bruiser:  renderGridToCanvas(Z_BRUISER),
-           skeleton:   renderGridToCanvas(SKELETON),
-           runner:     renderGridToCanvas(RUNNER_A),
-           bloater:    renderGridToCanvas(BLOATER_A),
-           droneFrames: [renderGridToCanvas(DRONE_FRAME_A), renderGridToCanvas(DRONE_FRAME_B)],
+           soldier: renderGridToCanvas(SPRITE_SOLDIER, 2),
+           z_shambler: renderGridToCanvas(Z_SHAMBLER, 2),
+           z_bruiser:  renderGridToCanvas(Z_BRUISER, 2),
+           skeleton:   renderGridToCanvas(SKELETON, 2),
+           runner:     renderGridToCanvas(RUNNER_A, 2),
+           bloater:    renderGridToCanvas(BLOATER_A, 2),
+           droneFrames: [renderGridToCanvas(DRONE_FRAME_A, 3), renderGridToCanvas(DRONE_FRAME_B, 3)],
            zombieFrames: {
-             z_shambler: [renderGridToCanvas(Z_SHAMBLER), renderGridToCanvas(Z_SHAMBLER_B)],
-             z_bruiser:  [renderGridToCanvas(Z_BRUISER),  renderGridToCanvas(Z_BRUISER_B)],
-             skeleton:   [renderGridToCanvas(SKELETON),   renderGridToCanvas(SKELETON_B)],
-             runner:     [renderGridToCanvas(RUNNER_A),   renderGridToCanvas(RUNNER_B)],
-             bloater:    [renderGridToCanvas(BLOATER_A),  renderGridToCanvas(BLOATER_B)],
+             z_shambler: [renderGridToCanvas(Z_SHAMBLER, 2), renderGridToCanvas(Z_SHAMBLER_B, 2)],
+             z_bruiser:  [renderGridToCanvas(Z_BRUISER, 2),  renderGridToCanvas(Z_BRUISER_B, 2)],
+             skeleton:   [renderGridToCanvas(SKELETON, 2),   renderGridToCanvas(SKELETON_B, 2)],
+             runner:     [renderGridToCanvas(RUNNER_A, 2),   renderGridToCanvas(RUNNER_B, 2)],
+             bloater:    [renderGridToCanvas(BLOATER_A, 2),  renderGridToCanvas(BLOATER_B, 2)],
            },
            icon: {
              heal:   renderGridToCanvas(ICONS.heal),
